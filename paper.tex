@@ -1,0 +1,80 @@
+\documentclass[letterpaper,twocolumn,10pt]{article}
+
+\usepackage{hyperref} % For clickable links; need to load this before usenix.
+\usepackage{usenix-2020-09}
+
+\usepackage{booktabs} % For nicely-typeset tables.
+\usepackage{xspace}
+\usepackage{color} % For colorful links.
+\usepackage{tikz} % For self-contained diagrams.
+\usepackage{amsmath} % For the 'align' environment.
+\usepackage[scaled=0.8]{beramono} % For a pleasant monospace font.
+\usepackage{listings} % For pretty code snippets.
+\usepackage{balance} % For balanced references on the last page.
+\usepackage{todonotes} % For pretty todos in the paper.
+\usepackage{pifont} % For dingbats symbols.
+
+
+\usepackage[maxbibnames=4, sorting=none]{biblatex} % For more flexible references.
+
+\definecolor{todocolor}{HTML}{FFA0A0}
+\newcommand{\phw}[1]{\todo[inline,color = todocolor]{\textbf{Philipp:} #1}\xspace}
+
+%\renewcommand*\familydefault{\ttdefault} % Use Beramono instead of our default monospace font.
+\usetikzlibrary[shapes,arrows,positioning,arrows.meta,calc]
+
+\definecolor{darkblue}{rgb}{0,0,0.5}
+\hypersetup{
+	pdftitle={},
+	pdfauthor={},
+	pdfkeywords={},
+	colorlinks=true,
+	urlcolor=darkblue,
+	linkcolor=darkblue,
+	citecolor=darkblue,
+}
+
+\lstset{
+    %backgroundcolor=\color{backcolour},   
+    %commentstyle=\color{codegreen},
+    %keywordstyle=\color{magenta},
+    %stringstyle=\color{codepurple},
+    numberstyle=\footnotesize\color{gray},
+    basicstyle=\small\ttfamily,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\addbibresource{references.bib}
+
+\begin{document}
+
+\title{A Framework for Building Networked Enclaves}
+
+\author{Brave Software}
+
+\maketitle
+
+% As a general rule, do not put math, special symbols or citations
+% in the abstract
+\input{sections/00-abstract}
+\input{sections/01-introduction}
+\input{sections/02-background}
+\input{sections/03-design}
+\input{sections/04-applications}
+\input{sections/05-evaluation}
+\input{sections/06-discussion}
+\input{sections/07-related-work}
+
+\balance
+\printbibliography
+
+\end{document}

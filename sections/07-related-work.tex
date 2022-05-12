@@ -1,0 +1,39 @@
+\section{Related Work}
+\label{sec:related-work}
+
+\begin{itemize}
+    \item https://openenclave.io/sdk/
+    \item Project Oak
+    \item Google Asylo
+\end{itemize}
+
+Work is similar to privacy-preserving analytics (PROCHLO/RAPPOR) but differs in the sense that clients have an incentive to lie, and we therefore cannot trust their reports.
+
+\subsection{IP Address *nymization}
+
+% How is our work different from traffic trace anonymization.
+
+In their 2006 CCR article, Pang et al. summarize their experience in obtaining permission to publish packet traces, implementing the anonymization policy, and demonstrating its correctness~\cite{Pang06a}.
+
+Difficult to anonymize traces~\cite{Burkhart10a}. Trade-off~\cite{Mohammady15a}
+
+\subsection{Applications of Secure Enclaves}
+
+Researchers have proposed numerous and diverse enclave-enabled systems, ranging from DeFi oracles~\cite{Zhang16a}, to health apps for COVID-19~\cite{Mailthody21a}, to networking middleboxes~\cite{Han17a}.
+
+Despite avid interest in academia, real-world deployments of enclaves are sparse.  In 2017, the Signal secure messenger published a blog post on private contact discovery~\cite{Marlinspike17a}, which makes it possible for Alice to discover which of the contacts in her address book use Signal without revealing her contact list.  The Signal team accomplished this by relying on an SGX enclave that runs the contact discovery code.  Two years later, in 2019, the Signal team built its ``secure value recovery'' feature on SGX as well~\cite{Lund19a}.
+
+\subsection{Attacks Against Secure Enclaves}
+
+https://sgaxe.com/files/SGAxe.pdf
+
+\textsc{Foreshadow}~\cite{Bulck18a}
+\cite{Bulck19a}
+
+
+Nilsson et al. surveyed existing SGX attacks in a 2020 arXiv report~\cite{Nilsson20a}.
+
+\subsection{Libraries}
+
+Open Enclave SDK provides an SDK for C and C++ that facilitates enclave development for SGX and TrustZone.
+https://github.com/openenclave/openenclave

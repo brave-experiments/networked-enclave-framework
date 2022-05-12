@@ -1,0 +1,24 @@
+\section{Background}
+\label{sec:background}
+
+This section provides an overview of secure enclaves in general (\S~\ref{sec:enclaves}) and AWS's implementation in particular (\S~\ref{sec:nitro}).
+
+\subsection{Secure Enclaves}
+\label{sec:enclaves}
+
+Computers operate on data that is at rest, in transit, and in use.  We have well-understood and practical ways to protect data at rest (e.g., full disk encryption) and in transit (e.g., TLS) but only limited solutions for data that is in use.  Cryptography provides solutions in the form of fully homomorphic encryption (FHE) and secure multiparty computation (MPC) but depending on the problem, those building blocks are still too slow or cumbersome for practical use.  Trusted execution environments---in particular in the form of ``secure enclaves''---provide an alternative that is rooted in hardware and code.  Unlike FHE and MPC, enclaves perform at near-native execution speed and they are general-purpose computing environments that are not limited to the computation of carefully designed functions.  Conceptually, enclaves are isolated execution environments that are shielded off from a computer's main execution environment---typically by relying on hardware.  Enclaves offer various security properties but in the context of this work, we rely on the following three:
+
+\begin{description}
+    \item[Confidentiality] An unauthorized entity must not be able to see the data that an enclave is computing.
+    \item[Integrity] An unauthorized entity must not be able to modify the data that the enclave is computing on, or the code it is running.
+    \item[Attestability] A separate entity must be able to verify if the enclave is running a given piece of code.
+\end{description}
+
+Modern CPUs of major hardware vendors implement secure enclaves; Intel has SGX, ARM has TrustZone, and AMD has SEV. Critique of industry efforts has focused on their proprietary nature. The community has a conceptual understanding of the mechanisms behind enclaves but their exact hardware implementation is not disclosed, which is in violation of Kerckhoffs's principle and served as motivation towards an open source enclave~\cite{Lee20a}.
+
+In practice, enclaves promise to be useful in situations where a system must process sensitive data while simultaneously be shielded off from the complexity (and subsequent insecurity) of general-purpose computers. Financial and health-related data are common examples of such situations.
+
+\subsection{AWS Nitro Enclaves}
+\label{sec:nitro}
+
+Back in 2020, several cloud providers started offering enclaves as part of their cloud-based virtual machines.  In this work, we use AWS's implementation which is called Nitro Secure Enclaves.  A Nitro enclave runs alongside its parent EC2 image but has a hardware-enforced, isolated computing environment, i.e., enclaves have their own kernel, CPU, and memory, neither of which is shared with the EC2 image.  By design, Nitro enclaves don't have a dedicated networking interface; rather, all networking is constrained to a VSOCK\footnote{Originally proposed for communication between a hypervisor and its virtual machines, AWS repurposed the VSOCK interface to serve as communication channel between an enclave and its parent EC2 image.} interface with its parent EC2 image, i.e., Nitro enclaves can only communicate via their parent EC2 image. Practically speaking, Nitro enclaves are essentially modified Docker images that run independently of their parent EC2 image.

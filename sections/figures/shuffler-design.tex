@@ -1,0 +1,20 @@
+\begin{tikzpicture}[node distance=20pt]
+
+\node [draw] (client1) {Client 1};
+\node [draw, below=of client1] (client2) {Client 2};
+\node [draw, below=of client2] (client3) {Client 3};
+
+\node [draw, align=center, right=1.7 cm of client2] (shuffler) {Shuffler\\($k=2$)};
+\node [draw, right=1.7 cm of shuffler] (backend) {Back end};
+
+\draw [-latex] (client1.east) -- ([yshift=3pt]shuffler.west)
+      node [midway, fill=white] {{\footnotesize foo=bar}};
+\draw [-latex] (client2.east) -- (shuffler.west)
+      node [midway, fill=white] {{\footnotesize foo=bar}};
+\draw [-latex] (client3.east) -- ([yshift=-3pt]shuffler.west)
+      node [midway, fill=white] {{\footnotesize foo=quz}};
+\draw [-latex] (shuffler.east) -- (backend.west)
+      node [midway, fill=white] {{\footnotesize foo=bar}};
+nd) {Back end};
+
+\end{tikzpicture}

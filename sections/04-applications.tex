@@ -1,0 +1,116 @@
+\section{Applications}
+\label{sec:applications}
+
+We demonstrate the practicality of our system by building on it to solve three real-world problems.  First, in a system that anonymizes client IP addresses for anti-fraud (\S~\ref{sec:anonymization}); second, to implement the randomness server that's required in the STAR2~\cite{Davidson2021a} system (\S~\ref{sec:randomness}); and third, to implement the shuffler service as proposed in the PROCHLO paper~\cite{Bittau2017a} (\S~\ref{sec:shuffler}).  In all three cases, we had to overcome minor obstacles but found that our framework sped up developing prototypes.
+
+\subsubsection{IP Address Anonymization}
+\label{sec:anonymization}
+
+\begin{itemize}
+    \item Cloud provider is configured to send message payload and IP address to enclave. We can make available the cloud provider's configuration, so users can figure out that we're not cheating.
+    \item 
+\end{itemize}
+
+\subsection{IP Address Anonymizer}
+
+Our first application is a system that originally motivated us to build the enclave framework. Consider a service provider that offers various services to its users.  The service provider seeks to know as little as possible about its users, which means that it doesn't capture and store any of its users' IP addresses.  IP addresses are however an important signal in the service provider's fight against a subset of its users that commit fraud.  This constitutes a conundrum: Should the service provider collect all its users' IP addresses to strengthen its anti-fraud efforts?  Or continue to drop them, and tolerate the fraud?
+
+This section presents an application that strikes a balance between these two extremes; an IP address anonymization system that can verifiably---thanks to enclaves---anonymize IP addresses.  The service provider can then run its anti-fraud logic over anonymized IP addresses rather than real ones.  While some information is lost in the process, we argue that what's most important---the relationship between IP addresses---can be preserved thanks to our use of Xu et al.'s Crypto-PAn scheme~\cite{Xu01a}.  Crypto-PAn encrypts both IPv4 and IPv6 addresses by implementing a 1:1 mapping $f$ that is keyed by $k$ from an IP address to its anonymized equivalent while \emph{preserving the address's prefix}, i.e., two IP addresses that share an $n$-bit prefix also share an $n$-bit prefix after anonymization as illustrated by the following example:
+
+\begin{align}
+f(k, \textrm{``\underline{10.0.0.}1''})\phantom{23} = \textrm{``\underline{242.32.192.}193''} \\
+f(k, \textrm{``\underline{10.0.0.}123''}) = \textrm{``\underline{242.32.192.}154''}
+\end{align}
+
+Figure~\ref{fig:address-anonymizer} illustrates the system design.  Clients periodically communicate with a service that is exposed behind a reverse proxy whose job---among other things---to hide client IP addresses from the service.  The proxy is configured to mirror incoming client request to the enclave, but with client IP addresses intact.  The anonymizer takes as input client requests, extracts the IP address that the proxy inserted from the HTTP header, anonymizes them, and forwards anonymized addresses in batches to the configured back end.  Components in gray under under the service provider's control.
+
+\begin{figure}[t]
+\centering
+\input{sections/figures/anonymizer-design}
+\caption{Clients communicate with a service that's available behind a third-party TCP proxy whose purpose is (among other things) to drop client IP addresses, so the service never sees them.  The proxy is configured to mirror incoming client requests \emph{with} IP address to the enclave, where addresses are anonymized and finally forwarded to a back end for analysis.}
+\label{fig:address-anonymizer}
+\end{figure}
+
+One problem however remains: how do clients know that the TCP proxy is configured the way the service provider claims?  After all, the service provider could simply configure the proxy to send client IP addresses to the service, thus deanonymizing all clients.  A simple and pragmatic solution is for the service provider to add a read-only role to its proxy configuration that allows its users to read (but not modify!) the proxy's configuration, so users can convince themselves that their IP address is only visible to the enclave.  Recall that the enclave's hosting EC2 image is also unable to see the IP address because the proxy establishes a TLS session that's terminated inside the enclave.
+
+\phw{This needs more detail.}
+
+The parent EC2 instance never sees client IP address in plain text but it could infer information about the encrypted IP address submissions by exploiting \emph{timing side channels}; in particular, the parent instance can precisely measure how long it takes to encrypt an IP address, which leaks information about the key material.  To close that side channel, we implement constant time operations.
+
+% Some words about our implementation.
+Our IP address anonymization service counts approximately 1,000 lines of code including comments and tests.
+
+\phw{Need to elaborate on how we prevent the service provider from injecting random IP addresses to de-anonymize existing addresses.}
+
+\paragraph{Key rotation}
+
+\cite{Padmanabhan20a}
+
+
+A single mapping from a plain to an anonymous IP address cannot easily be reversed and reveals little about a given client but that can change if the service provider expects the client to repeatedly report its IP address to the enclave.  For example, a series of past IP addresses can reveal that (\emph{i}) the client has not changed its IP address at all, (\emph{ii}) the client changed its IP address but is likely to use the same ISP (e.g., if the /24 prefix remains the same), or (\emph{iii}) the client changes IP addresses \emph{and} ISPs (e.g., if the prefixes of the anonymous IP addresses share less than, say, eight bits).  While this is useful information for anti-fraud operations, service providers may decide to err on the side of privacy and periodically rotate the enclave's Crypto-PAn key to eliminate insight into the client's anonymous IP address history.  Our code therefore allows for key rotation every $t$ hours.
+
+In the final step, the enclave submits the client's encrypted IP address to the service provider's back end, where anti-fraud logic is implemented.  The implementation details of both the back end and its anti-fraud logic are beyond the scope of this paper.
+
+\subsubsection{PROCHLO Shuffler}
+\label{sec:shuffler}
+
+Bittau et al.'s SOSP'17 paper~\cite{Bittau2017a} proposed a private analytics system that helps service providers gain insight into how their clients behave.  Their system---called PROCHLO---consists of three components: (\emph{i}) software running on the client can (but doesn't have to) add local differential privacy to their measurements, after which (\emph{ii}) they are forwarded to a shuffler, which enforced a configurable $k$-anonymity threshold on incoming measurements. From there, remaining measurements \emph{iii}) are forwarded to an analytics system that the service provider uses to explore users' anonymized data.
+
+The PROCHLO paper envisioned the shuffler to run in a secure enclave; otherwise users would have no reason to trust that the shuffler is in fact enforcing $k$-anonymity thresholds.  To that end, the authors designed the shuffler to run inside an SGX enclave, which was challenging considering the little memory that is available inside SGX enclaves.
+
+We re-implemented the shuffler by building it on top of our framework.\footnote{The code is freely available but we omit a link to it to preserve our anonymity.}  The code counts approximately 1,000 lines of code and is a near-complete implementation of the shuffler as it was proposed in the PROCHLO paper.  We did not implemented nested encryption~\cite[\S~3]{Bittau2017a} for simplicity.
+
+As illustrated in Figure~\ref{fig:shuffler}, our shuffler takes as input confidential client measurements and enforces a configurable $k$-anonymity threshold on those measurements.  Every $t$ seconds, the shuffler discards messages that don't meet the threshold and forwards the remaining messages to its back end.\footnote{The variable $t$ depends entirely on the rate of incoming measurements.  Reasonable values can range from hours (if the shuffler constantly sees a high rate of incoming measurements) to days.}
+
+\begin{figure}[t]
+\centering
+\input{sections/figures/shuffler-design}
+\caption{A conceptual overview of our shuffler implementation.  Clients send measurements to the shuffler, which enforces a $k$-anonymity threshold---in this case for $k$=2. Only one of the two measurement types passes the threshold and is forwarded to the back end.}
+\label{fig:shuffler}
+\end{figure}
+
+Before clients send their sensitive measurements to the shuffler, they audit its source code and perform remote attestation to convince themselves that they are sending their measurement to an enclave that runs the code that they audited.
+
+Compared to Bittau et al.'s original design that was based on SGX, our implementation inherits the security properties of Nitro enclaves, which is physical isolation.  Besides, our framework is unaffected by the performance constraints of SGX, which makes the shuffling algorithms easier and more efficient to implement.
+
+\subsubsection{Randomness Server}
+\label{sec:randomness}
+
+Davidson et al.~\cite{Davidson2021a} introduced a k-anonymity system called STAR which is based on Shamir's secret sharing~\cite{Shamir79a}.  To derive secret sharing shards, STAR relies on a trusted \emph{randomness server} that supplies clients with per-epoch entropy.  The randomness server must be trusted, which means that it either must be run by a trusted third party, or inside a secure enclave.
+
+\phw{We have to be careful with this section, so we don't double-sell our contribution of the P3A paper.}
+
+We took Davidson et al.'s Rust implementation of the randomness server and implemented a foreign function interface that allows us to call the Rust code from Go.  Essentially, the foreign function interface exposes a C API that we subsequently call from Go.
+
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+
+    nitro "REDACTED"
+)
+
+func handler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintln(w, "hello world")
+}
+
+func main() {
+    enclave := nitro.NewEnclave(
+        &nitro.Config{
+            FQDN:    "example.com",
+            Port:    8082,
+            UseACME: false,
+            Debug:   false,
+        },
+    )
+    enclave.AddRoute(http.MethodGet,
+                     "/hello-world",
+                     handler)
+    if err := enclave.Start(); err != nil {
+        log.Fatalf("Terminated: %v", err)
+    }
+}
+\end{lstlisting}

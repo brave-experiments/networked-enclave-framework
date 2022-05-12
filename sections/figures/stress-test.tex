@@ -1,0 +1,41 @@
+\begin{tikzpicture}[node distance=20pt]
+	\node [draw,
+           label=EC2 parent,
+           minimum height=40pt,
+           align=center,
+           minimum width=140pt] (ec2) {};
+	\node [draw,
+           label=Enclave,
+           right=0pt of ec2,
+           fill=black!10,
+           minimum height=40pt,
+           minimum width=80pt] (enclave) {};
+	   
+	\node [draw,
+           align=center,
+           minimum height=25pt,
+           left=15pt of ec2.east] (viproxy) {TCP proxy};
+
+	\node [draw,
+           align=center,
+           left=of viproxy] (stress) {Stress\\test tool};
+  
+	\node[draw,
+          align=center,
+          fill=white,
+          minimum height=25pt,
+          left=15pt of enclave.east] (app) {Application};
+
+
+    \node [align=center] at (enclave.north west) {\footnotesize \color{gray} VSOCK\\\footnotesize \color{gray} interface};
+
+    % Stress test tool talking to the application.
+    \draw[-latex] ([yshift=5pt]stress.east) -- ([yshift=5pt]viproxy.west);
+    \draw[-latex] (stress.east) -- (viproxy.west);
+    \draw[-latex] ([yshift=-5pt]stress.east) -- ([yshift=-5pt]viproxy.west);
+
+    \draw[-latex] ([yshift=5pt]viproxy.east) -- ([yshift=5pt]app.west);
+    \draw[-latex] (viproxy.east) -- (app.west);
+    \draw[-latex] ([yshift=-5pt]viproxy.east) -- ([yshift=-5pt]app.west);
+
+\end{tikzpicture}
