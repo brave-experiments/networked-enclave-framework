@@ -22,7 +22,7 @@ f(k, \textrm{``\underline{10.0.0.}1''})\phantom{23} = \textrm{``\underline{242.3
 f(k, \textrm{``\underline{10.0.0.}123''}) = \textrm{``\underline{242.32.192.}154''}
 \end{align}
 
-Figure~\ref{fig:address-anonymizer} illustrates the system design.  Clients periodically communicate with a service that is exposed behind a reverse proxy whose job---among other things---to hide client IP addresses from the service.  The proxy is configured to mirror incoming client request to the enclave, but with client IP addresses intact.  The anonymizer takes as input client requests, extracts the IP address that the proxy inserted from the HTTP header, anonymizes them, and forwards anonymized addresses in batches to the configured back end.  Components in gray under under the service provider's control.
+Figure~\ref{fig:address-anonymizer} illustrates the system design.  Clients periodically communicate with a service that is exposed behind a reverse proxy whose job---among other things---is to hide client IP addresses from the service.  The proxy is configured to mirror incoming client request to the enclave, but with client IP addresses intact.  The anonymizer takes as input client requests, extracts the IP address that the proxy inserted from the HTTP header, anonymizes them, and forwards anonymized addresses in batches to the configured back end.  Components in gray under under the service provider's control.
 
 \begin{figure}[t]
 \centering
