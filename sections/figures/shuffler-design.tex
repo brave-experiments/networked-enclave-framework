@@ -8,13 +8,15 @@
 \node [draw, right=1.7 cm of shuffler] (backend) {Back end};
 
 \draw [-latex] (client1.east) -- ([yshift=3pt]shuffler.west)
-      node [midway, fill=white] {{\footnotesize foo=bar}};
+      node [midway, fill=black!10] {{\footnotesize key=foo}};
+
 \draw [-latex] (client2.east) -- (shuffler.west)
-      node [midway, fill=white] {{\footnotesize foo=bar}};
+      node [midway, fill=black!10] {{\footnotesize key=foo}};
+
 \draw [-latex] (client3.east) -- ([yshift=-3pt]shuffler.west)
-      node [midway, fill=white] {{\footnotesize foo=quz}};
+      node [midway, fill=black!10] {{\footnotesize key=bar}};
+
 \draw [-latex] (shuffler.east) -- (backend.west)
-      node [midway, fill=white] {{\footnotesize foo=bar}};
-nd) {Back end};
+      node [midway, fill=black!10] {{\footnotesize key=foo}};
 
 \end{tikzpicture}
