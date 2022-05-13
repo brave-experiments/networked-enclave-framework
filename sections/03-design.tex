@@ -1,7 +1,11 @@
 \section{Framework Design}
 \label{sec:design}
 
-We start by laying out the involved parties and their respective trust assumptions (\S~\ref{sec:trust-assumptions}), followed by an overview of our system (\S~\ref{sec:overview}).  We then discuss the two major aspects of our framework: the build system (\S~\ref{sec:build-system}) and the framework (\S~\ref{sec:framework}).
+We start by laying out the involved parties and their respective trust
+assumptions (\S~\ref{sec:trust-assumptions}), followed by an overview of our
+system (\S~\ref{sec:overview}).  We then discuss the two major aspects of our
+framework: the build system (\S~\ref{sec:build-system}) and the framework
+(\S~\ref{sec:framework}).
 
 \subsection{Trust Assumptions}
 \label{sec:trust-assumptions}
@@ -9,42 +13,114 @@ We start by laying out the involved parties and their respective trust assumptio
 Our setting has four participants that have the following trust assumptions:
 
 \begin{enumerate}
-    \item The \emph{service provider} wants to process sensitive client information.
-    \item The \emph{client} is a user of the service provider.  It does not trust the service provider and wants verifiable guarantees that the service provider will never see the client's sensitive information in plain text.  Clients further have an incentive to commit fraud and lie about their IP addresses.
-    \item The \emph{infrastructure provider} is a third party that provides infrastructure to the service provider.  The client trusts that the infrastructure provider and the service provider don't collude.
-    \item The \emph{enclave provider} makes available enclaves to the service provider.  Both the client and the service provider trust that the enclave provider's enclaves have the security attributes of integrity, confidentiality, and attestability.  The client trusts that the enclave provider and service provider don't collude.
+    \item The \emph{service provider} wants to process sensitive client
+      information.
+
+    \item The \emph{client} is a user of the service provider.  It does not
+      trust the service provider and wants verifiable guarantees that the
+      service provider will never see the client's sensitive information in
+      plain text.  Clients further have an incentive to commit fraud and lie
+      about their IP addresses.
+
+    \item The \emph{infrastructure provider} is a third party that provides
+      infrastructure to the service provider.  The client trusts that the
+      infrastructure provider and the service provider don't collude.
+
+    \item The \emph{enclave provider} makes available enclaves to the service
+      provider.  Both the client and the service provider trust that the
+      enclave provider's enclaves have the security attributes of integrity,
+      confidentiality, and attestability.  The client trusts that the enclave
+      provider and service provider don't collude.
 \end{enumerate}
 
 \subsection{Overview}
 \label{sec:overview}
 
-We begin with a short, informal overview of our system to provide intuition.  The subsequent sections are going to elaborate on this high-level picture.  
+We begin with a short, informal overview of our system to provide intuition.
+The subsequent sections are going to elaborate on this high-level picture.  
 
 \begin{enumerate}
-    \item The service provider implements a new service with the intention of running it in an enclave.  Once the implementation is finished, the service provider publishes the source code for the clients to audit, and runs the code in an enclave.  After booting, the enclave obtains a CA-signed certificate.
-    \item Users audit the source code.  Once a user has convinced herself that the code is free of bugs, she compiles the code using the framework's deterministic build system, resulting in an image checksum.
-    \item The client establishes an end-to-end encrypted network connection to the enclave.  Right \emph{after} establishing the connection but \emph{before} revealing any sensitive information, the client provides a nonce and asks the enclave for an attestation document.
-    \item The enclave receives the nonce and asks its hypervisor to generate an attestation document that should contain the client-provided nonce \emph{and} the fingerprint of the enclave's CA-signed certificate.  The resulting attestation document is returned to the client.
-    \item The client performs various checks (see \S~\ref{sec:} for details) and trusts the enclave if all checks pass.  The client is then convinced that it's communicating with the code that the user audited in the previous steps, and is willing to reveal her sensitive information to the enclave.
+    \item The service provide implements a new service with the intention of
+      running it in an enclave.  Once the implementation is finished, the
+      service provider publishes the source code for the clients to audit, and
+      runs the code in an enclave.  After booting, the enclave obtains a
+      CA-signed certificate.
+
+    \item Users audit the source code.  Once a user has convinced herself that
+      the code is free of bugs, she compiles the code using the framework's
+      deterministic build system, resulting in an image checksum.
+
+    \item The client establishes an end-to-end encrypted network connection to
+      the enclave.  Right \emph{after} establishing the connection but
+      \emph{before} revealing any sensitive information, the client provides a
+      nonce and asks the enclave for an attestation document.
+
+    \item The enclave receives the nonce and asks its hypervisor to generate an
+      attestation document that should contain the client-provided nonce
+      \emph{and} the fingerprint of the enclave's CA-signed certificate.  The
+      resulting attestation document is returned to the client.
+
+    \item The client performs various checks (see \S~\ref{sec:} for details)
+      and trusts the enclave if all checks pass.  The client is then convinced
+      that it's communicating with the code that she audited in the previous
+      steps, and is willing to reveal its sensitive information to the enclave.
 \end{enumerate}
 
-% As illustrated in Figure~\ref{fig:overview}, clients submit their IP address to the enclave, which is run by the enclave provider but its code comes from the service provider.  It's not possible to talk to the enclave directly because all communication happens via the (untrustworthy) parent EC2 instance, which is why we introduce a TCP proxy (run by the infrastructure provider), which prevents the EC2 instance from seeing the client's IP address.  The client establishes a TLS session that is terminated inside the enclave and can therefore be sure that its IP address is sent to the enclave, and the enclave only.
-% After the enclave received the client's address, it responds with a nonce. The enclave does not know if the client reported its real address or a fake address, so it must actively verify the address, but it cannot connect to the client directly because that would allow the EC2 instance to see the client's IP address.  To solve this problem, we make the enclave talk to the client via a VPN node.  Upon connection establishment, the client must send the nonce it received from the enclave in the previous step.  Once the enclave recognizes the nonce, it rests assured that the client really does control the IP address it submitted earlier.
-% In the final step, the enclave anonymizes the client's IP address and forwards it to its back end.
+% As illustrated in Figure~\ref{fig:overview}, clients submit their IP address
+% to the enclave, which is run by the enclave provider but its code comes from
+% the service provider.  It's not possible to talk to the enclave directly
+% because all communication happens via the (untrustworthy) parent EC2
+% instance, which is why we introduce a TCP proxy (run by the infrastructure
+% provider), which prevents the EC2 instance from seeing the client's IP
+% address.  The client establishes a TLS session that is terminated inside the
+% enclave and can therefore be sure that its IP address is sent to the enclave,
+% and the enclave only.
 
+% After the enclave received the client's address, it responds with a nonce.
+% The enclave does not know if the client reported its real address or a fake
+% address, so it must actively verify the address, but it cannot connect to the
+% client directly because that would allow the EC2 instance to see the client's
+% IP address.  To solve this problem, we make the enclave talk to the client
+% via a VPN node.  Upon connection establishment, the client must send the
+% nonce it received from the enclave in the previous step.  Once the enclave
+% recognizes the nonce, it rests assured that the client really does control
+% the IP address it submitted earlier.
+
+% In the final step, the enclave anonymizes the client's IP address and
+% forwards it to its back end.
 
 \subsection{The Reproducible Build System}
 \label{sec:build-system}
 
 % Why it's not a big deal that only some users can audit our code.
-Only a small subset of the users will be skilled enough programmers to audit the enclave's code for bugs.  We expect non-technical users to trust that other users---or perhaps professional code audit companies---have studied the code and pointed out potential bugs.  Once a user has convinced herself of the code's correctness, she compiles the code to arrive at an image ID.  Crucially, we need a \emph{deterministic mapping} between the code and its corresponding image ID because the service provider and clients must agree on the image ID that's running in the enclave.
+Only a small subset of the users will be skilled enough programmers to audit
+the enclave's code for bugs.  We expect non-technical users to trust that other
+users---or perhaps professional code audit companies---have studied the code
+and pointed out potential bugs.  Once a user convinced herself of the code's
+correctness, she compiles the code to arrive at an image ID.  Crucially, we
+need a \emph{deterministic mapping} between the code and its corresponding
+image ID because the service provider and clients must agree on the image ID
+that's running in the enclave.
 
-Docker does not offer a deterministic mapping because, among other things, Docker uses timestamps in its build process, causing subsequent builds of identical code to result in different image IDs.\footnote{In essence, an image is simply a file system.  If an image is reproducible, separate build processes arrive at the exact same file system.}  To obtain reproducible builds, we use the tool kaniko~\cite{kaniko}.  Kaniko's main purpose is to build container images from a Dockerfile while itself in a container, but we use kaniko because it can do so reproducibly.  As long as the client and service provider use the same enclave source code, Go version, and kaniko version, they can build identical images---even when compiling the code on different platforms, like Mac OS and Linux.  Equipped with a locally-compiled container image ID, the client is now ready to interact with the enclave.
+Docker does not offer a deterministic mapping because, among other things,
+Docker uses timestamps in its build process, causing subsequent builds of
+identical code to result in different image IDs.\footnote{In essence, an image
+is simply a file system.  If an image is reproducible, separate build processes
+arrive at the exact same file system.}  To obtain reproducible builds, we use
+the tool kaniko~\cite{kaniko}.  Kaniko's main purpose is to build container
+images from a Dockerfile while itself in a container, but we use kaniko because
+it can do so reproducibly.  As long as the client and service provider use the
+same enclave source code, Go version, and kaniko version, they can build
+identical images---even when compiling the code on different platforms, like
+Mac OS and Linux.  Equipped with a locally-compiled container image ID, the
+client is now ready to interact with the enclave.
 
 \subsection{Framework Features}
 \label{sec:framework}
 
-Having established how one can build applications reproducibly, we now turn to the specific features of our framework.  The following sections discuss how the framework communicates with the outside world (\S~\ref{sec:networking});
+Having established how one can build applications reproducibly, we now turn to
+the specific features of our framework.  The following sections discuss how the
+framework communicates with the outside world (\S~\ref{sec:networking});
 how it seeds its entropy pool, (\S~\ref{sec:entropy});
 how it obtains a CA-signed certificate (\S~\ref{sec:cert});
 how we facilitate remote attestation (\S~\ref{sec:attestation});
@@ -52,21 +128,41 @@ and how enclaves can share their key material to allow for horizontal scaling (\
 how we allow for logging (\S~\ref{sec:logging});
 and finally how to thwart side-channel attacks (\S~\ref{sec:side-channels}).
 
-\phw{Add subsection on an endpoint that allows for the ingestion of well-defined, private data (e.g., IP address filter lists).}
+\phw{Add subsection on an endpoint that allows for the ingestion of
+well-defined, private data (e.g., IP address filter lists).}
 
 \subsubsection{Enabling Networking}
 \label{sec:networking}
 
-Recall from Section~\ref{sec:nitro} that Nitro enclaves have no dedicated network interface and are only able to communicate with their respective EC2 host.  Our framework therefore needs to provide code that runs on the parent EC2 host and forwards packets between clients and the enclave.  Figure~\ref{fig:networking} illustrates our networking architecture.
+Recall from Section~\ref{sec:nitro} that Nitro enclaves have no dedicated
+network interface and are only able to communicate with their respective EC2
+host.  Our framework therefore needs to provide code that runs on the parent
+EC2 host and forwards packets between clients and the enclave.
+Figure~\ref{fig:networking} illustrates our networking architecture.
 
-When the enclave first starts, it fetches a CA-signed certificate from Let's Encrypt.  To do so, it first connects to Let's Encrypt's infrastructure via a SOCKS proxy.  Let's Encrypt does not publish its endpoints' IP addresses, which is why we cannot use point-to-point connections and have to rely on the flexibility of a SOCKS proxy.\footnote{We implemented both the SOCKS proxy and the TCP proxy, and make both available under a free license.}
+When the enclave first starts, it fetches a CA-signed certificate from Let's
+Encrypt.  To do so, it first connects to Let's Encrypt's infrastructure via a
+SOCKS proxy.  Let's Encrypt does not publish its endpoints' IP addresses, which
+is why we cannot use point-to-point connections and have to rely on the
+flexibility of a SOCKS proxy.\footnote{We implemented both the SOCKS proxy and
+the TCP proxy, and make both available under a free license.}
 
-Clients establish end-to-end encrypted TLS sessions with the enclave via a TCP proxy on the EC2 machine that translates between AF\_INET and AF\_VSOCK.  Note that the EC2 machine only sees encrypted data. Clients should further only connect to the EC2 machine via a third party reverse proxy, which also hides the client's network identity from the EC2 machine.
+Clients establish end-to-end encrypted TLS sessions with the enclave via a TCP
+proxy on the EC2 machine that translates between AF\_INET and AF\_VSOCK.  Note
+that the EC2 machine only sees encrypted data. Clients should further only
+connect to the EC2 machine via a third party reverse proxy, which also hides
+the client's network identity from the EC2 machine.
 
-In case of a compromise, we don't want the application to be able to leak data to an attacker-controlled endpoint via the SOCKS proxy, which is why we use an allow list on the SOCKS proxy.  In a typical application, the allow list consists of two endpoints:
+In case of a compromise, we don't want the application to be able to leak data
+to an attacker-controlled endpoint via the SOCKS proxy, which is why we use an
+allow list on the SOCKS proxy.  In a typical application, the allow list
+consists of two endpoints:
+
 \begin{enumerate}
-    \item The domain name acme-v02.api.letsencrypt.org to interact with Let's Encrypt.
-    \item The IP address of whatever back end machine the enclave needs to talk to.
+    \item The domain name acme-v02.api.letsencrypt.org to interact with Let's
+      Encrypt.
+    \item The IP address of whatever back end machine the enclave needs to talk
+      to.
 \end{enumerate}
 
 
@@ -75,21 +171,54 @@ In case of a compromise, we don't want the application to be able to leak data t
 \begin{figure}[t]
 \centering
 \input{sections/figures/network-architecture}
-\caption{Upon bootstrapping, the application first asks the hypervisor for randomness to seed its entropy pool (\ding{202}), followed by initiating an ACME session to obtain a Let's Encrypt-signed certificate (\ding{203}), after which Let's Encrypt probes the enclave an issues the certificate (\ding{204}).  Afterwards, clients can establish HTTPS connections with the enclave (\ding{205}) and the enclave can forward data to its back end (\ding{206}).  All of the application's ingress and egress  traffic is routed over a TCP proxy that translates between AF\_INET and AF\_VSOCK.  Egress traffic is reaches the Internet via a SOCKS proxy.}
+\caption{Upon bootstrapping, the application first asks the hypervisor for
+  randomness to seed its entropy pool (\ding{202}), followed by initiating an
+  ACME session to obtain a Let's Encrypt-signed certificate (\ding{203}), after
+  which Let's Encrypt probes the enclave an issues the certificate
+  (\ding{204}).  Afterwards, clients can establish HTTPS connections with the
+  enclave (\ding{205}) and the enclave can forward data to its back end
+  (\ding{206}).  All of the application's ingress and egress  traffic is routed
+  over a TCP proxy that translates between AF\_INET and AF\_VSOCK.  Egress
+  traffic is reaches the Internet via a SOCKS proxy.}
 \label{fig:networking}
 \end{figure}
 
 \subsubsection{Seeding the Entropy Pool}
 \label{sec:entropy}
 
-Like virtual machines, a Nitro secure enclave is an entropy-starved, sterile environment that lacks access to periphery devices that could help the kernel seed its entropy pool.  To work around that, the Nitro's hypervisor can provide randomness that the enclave can use to seed its entropy pool.  Our framework automatically takes advantage of that when it first starts, so application developers are never going to run into function calls that block because of a lack of randomness.
+Like virtual machines, a Nitro secure enclave is an entropy-starved, sterile
+environment that lacks access to periphery devices that could help the kernel
+seed its entropy pool.  To work around that, the Nitro's hypervisor can provide
+randomness that the enclave can use to seed its entropy pool.  Our framework
+automatically takes advantage of that when it first starts, so application
+developers are never going to run into function calls that block because of a
+lack of randomness.
 
 \subsubsection{End-to-end Secure Channel}
 \label{sec:cert}
 
-Having established how the enclave can send and receive network packets, we now turn our attention to secure channels.  More specifically: how can a host on the Internet be sure that it's talking to the enclave application code it audited, without taking advantage of an existing trust relationship?
+Having established how the enclave can send and receive network packets, we now
+turn our attention to secure channels.  More specifically: how can a host on
+the Internet be sure that it's talking to the enclave application code it
+audited, without taking advantage of an existing trust relationship?
 
-We implement a secure channel based on HTTPS.  Once the enclave has initialized its entropy pool, it obtains an HTTPS certificate that allows clients to establish end-to-end encrypted session with the enclave.  Crucially, the HTTPS certificate \emph{lives and dies} inside the enclave and its private key cannot be extracted (or injected) by the service provider.  Our framework allows for the creation of a self-signed certificate or a CA-signed certificate.  If a self-signed certificate is desired, the framework creates and signs a certificate for a given FQDN.  To get a CA-signed certificate, the framework uses Let's Encrypt's ACME protocol because it allows for the generation of a certificate with no human interaction.  In that case, the enclave initiates an HTTP-01 challenge connection with Let's Encrypt's infrastructure via our SOCKS proxy (cf. Figure~\ref{fig:networking}), and subsequently expects an incoming connection from Let's Encrypt to port 80, which the hosting EC2 image forwards to the enclave.  Note that the hosting EC2 machine could also obtain a valid CA-signed certificate for the same FQDN because the enclave and the EC2 image share a single IP address.  However, this is of little use to the EC2 machine as we will discuss in the next section.
+We implement a secure channel based on HTTPS.  Once the enclave initialized its
+entropy pool, it obtains an HTTPS certificate that allows clients to establish
+end-to-end encrypted session with the enclave.  Crucially, the HTTPS
+certificate \emph{lives and dies} inside the enclave and its private key cannot
+be extracted (or injected) by the service provider.  Our framework allows for
+the creation of a self-signed certificate or a CA-signed certificate.  If a
+self-signed certificate is desired, the framework creates and signs a
+certificate for a given FQDN.  To get a CA-signed certificate, the framework
+uses Let's Encrypt's ACME protocol because it allows for the generation of a
+certificate with no human interaction.  In that case, the enclave initiates an
+HTTP-01 challenge connection with Let's Encrypt's infrastructure via our SOCKS
+proxy (cf. Figure~\ref{fig:networking}), and subsequently expects an incoming
+connection from Let's Encrypt to port 80, which the hosting EC2 image forwards
+to the enclave.  Note that the hosting EC2 machine could also obtain a valid
+CA-signed certificate for the same FQDN because the enclave and the EC2 image
+share a single IP address.  However, this is of little use to the EC2 machine
+as we will discuss in the next section.
 
 The application can register arbitrary handlers.
 
@@ -98,56 +227,121 @@ The application can register arbitrary handlers.
 \subsubsection{Remote Attestation}
 \label{sec:attestation}
 
-After the client establishes an HTTPS connection with the enclave, it needs to know that (\emph{i}) the TLS connection it just established is terminated inside the enclave (instead of by the EC2 machine) and (\emph{ii}) the enclave is running the code that the user audited in the previous step.  To that end, the client requests the enclave's \emph{attestation document}---a hypervisor-signed document that attests to the container image ID that the enclave is running.  To request an attestation document, the client provides a \emph{nonce}---a 20-byte random value---whose purpose is to prevent the service provider from replaying attestation documents.  Phrased differently, the client provides a nonce to convince itself that it's talking to an live enclave.  In particular, clients make the following HTTP request to request an attestation document:
+After the client established an HTTPS connection with the enclave, it needs to
+know that (\emph{i}) the TLS connection it just established is terminated
+inside the enclave (instead of by the EC2 machine) and (\emph{ii}) the enclave
+is running the code that the user audited in the previous step.  To that end,
+the client requests the enclave's \emph{attestation document}---a
+hypervisor-signed document that attests to the container image ID that the
+enclave is running.  To request an attestation document, the client provides a
+\emph{nonce}---a 20-byte random value---whose purpose is to prevent the service
+provider from replaying attestation documents.  Phrased differently, the client
+provides a nonce to convince itself that it's talking to an live enclave.  In
+particular, clients make the following HTTP request to request an attestation
+document:
 
 \begin{lstlisting}
 GET /attestation?nonce=80835718840fa8652364e8b5d05a9c03d42123b7 HTTP/1.1
 \end{lstlisting}
 
-The enclave receives the request and the provided nonce, asks the hypervisor to include the nonce \emph{and} the fingerprint of the enclave's X.509 certificate in the attestation document, and sends the resulting attestation document to the client.  By asking the hypervisor to include the certificate fingerprint in the attestation document, we effectively bind a TLS session to an enclave.  The client then verifies the following in order:
+The enclave receives the request and the provided nonce, asks the hypervisor to
+include the nonce \emph{and} the fingerprint of the enclave's X.509 certificate
+in the attestation document, and sends the resulting attestation document to
+the client.  By asking the hypervisor to include the certificate fingerprint in
+the attestation document, we effectively bind a TLS session to an enclave.  The
+client then verifies the following in order:
 
 \begin{enumerate}
-    \item The attestation document is signed by the AWS PKI whose public key is known to all parties.
+    \item The attestation document is signed by the AWS PKI whose public key is
+      known to all parties.
     \item The challenge is part of the attestation document.
-    \item The fingerprint of the enclave's X.509 certificate is part of the attestation document.
-    \item The enclave's image ID is identical to the image ID that the client compiled locally.
+    \item The fingerprint of the enclave's X.509 certificate is part of the
+      attestation document.
+    \item The enclave's image ID is identical to the image ID that the client
+      compiled locally.
 \end{enumerate}
 
-If all four conditions hold, the client is convinced that it's talking to an enclave that runs the code that the client audited in the previous step, and that the TLS connection is terminated in the enclave.  Note that the hosting EC2 machine is able to intercept HTTPS connections with its own, CA-signed certificate but clients will only trust the EC2 machine if (and only if) it can produce an attestation document as expected by the client, which it can't.  Now that the client has established a trust relationship with the enclave, it's ready to send sensitive information to the enclave.
+If all four conditions hold, the client is convinced that it's talking to an
+enclave that runs the code that the client audited in the previous step, and
+that the TLS connection is terminated in the enclave.  Note that the hosting
+EC2 machine is able to intercept HTTPS connections with its own, CA-signed
+certificate but clients will only trust the EC2 machine if (and only if) it can
+produce an attestation document as expected by the client, which it can't.  Now
+that the client has established a trust relationship with the enclave, it's
+ready to send sensitive information to the enclave.
 
-While attestation documents can be generated quickly and in rapid succession---we present performance measurements in Section~\ref{sec:attestation-performance}, they do require an extra round trip between the client and the enclave before the client is willing to reveal sensitive information.  To eliminate that round trip, clients should use TLS session resumption once they have verified the enclave's attestation document.  The service provider is unable to tamper with the enclave's key material, so it's safe to re-use a once-established TLS session to forego an unnecessary round trip.
+While attestation documents can be generated quickly and in rapid
+succession---we present performance measurements in
+Section~\ref{sec:attestation-performance}, they do require an extra round trip
+between the client and the enclave before the client is willing to reveal
+sensitive information.  To eliminate that round trip, clients should use TLS
+session resumption once they have verified the enclave's attestation document.
+The service provider is unable to tamper with the enclave's key material, so
+it's safe to re-use a once-established TLS session to forego an unnecessary
+round trip.
 
 \paragraph{Client-side Verification}
 
-Remote attestation is a complex process that is difficult to understand and execute, and our system assumes that users go through it.  We therefore made an effort to abstract away technical details as much as possible.  A user who wishes to remotely attest an enclave essentially has a simple question: ``Does the enclave that's exposed at a given URL run the source code that I just audited?''  We built a tool set that simplifies the process to running a Makefile, e.g.:
-
-\begin{lstlisting}
-make verify CODE="/path/to/enclave/code/" \
-            ENCLAVE="https://example.com/attest"
-\end{lstlisting}
-
-The first environment variable, \texttt{CODE}, points to the directory containing the source code that the enclave is supposedly running, and the user just audited.  The second variable, \texttt{ENCLAVE} points to the URL of the enclave that the user's client is connecting to.  Once the user runs the above command, the Makefile deterministically compiles the given source code to obtain its image ID, asks the enclave for an attestation document, verifies the document, and ensures that the attestation document is for the image ID that was compiled in the first step.  If all checks pass, the tool informs the user accordingly:
+Even for developers, remote attestation is a complex process that is difficult
+to understand and work with, and in our setting, end users are expected to
+conduct remote attestation.  We therefore made a careful effort to abstract
+away technical details.  A user wishing to remotely attest an enclave
+essentially asks herself ``Does the enclave that's exposed at a given URL run
+the source code that I just audited?''  We built a tool set that reduces the
+process to the running of a Makefile, e.g.:
 
 \begin{lstlisting}
 $ make verify CODE="/path/to/enclave/code/" \
-            ENCLAVE="https://example.com/attest"
-Remote image is identical to local image.
+              ENCLAVE="https://example.com/attest"
 \end{lstlisting}
+
+The first environment variable, \texttt{CODE}, points to the directory
+containing the source code that the enclave is supposedly running, and the user
+audited.  The second variable, \texttt{ENCLAVE}, points to the URL endpoint of
+the enclave that the user's client is connecting to.  When the user runs this
+command, the Makefile deterministically compiles the given source code to
+obtain its image ID, asks the enclave for an attestation document, verifies the
+document, and ensures that the attestation document is for the image ID that
+was compiled in the first step.  If all checks pass, the tool informs the user
+accordingly.
 
 \subsubsection{Sharing Key Material}
 \label{sec:sync}
 
-Recall that enclaves are essentially sealed black boxes at runtime, preventing anyone (including Amazon) from extracting key material that was generated inside the enclave.  While this is a desirable property, it complicates horizontal scaling.  If a single enclave is unable to handle the service provider's traffic load, one must scale horizontally, and start new enclaves.  For some use cases, it is not acceptable if each enclave maintains its own key material.  Instead, it is desirable for enclaves to \emph{share their key material} to the outside world perceives a set of enclaves as a single machine.
+Recall that enclaves are essentially sealed black boxes at runtime, preventing
+anyone (including Amazon) from extracting key material that was generated
+inside the enclave.  While this is a desirable property, it complicates
+horizontal scaling.  If a single enclave is unable to handle the service
+provider's traffic load, one must scale horizontally, and start new enclaves.
+For some use cases, it is not acceptable if each enclave maintains its own key
+material.  Instead, it is desirable for enclaves to \emph{share their key
+material} to the outside world perceives a set of enclaves as a single machine.
 
-The general idea is that there exists an ``original'' enclave that was started before any other enclaves. This original enclave must then share its key material with other enclaves.  Crucially, key material is only shared after \emph{mutual authentication}.  Key synchronization happens in three steps.
+The general idea is that there exists an ``original'' enclave that was started
+before any other enclaves. This original enclave must then share its key
+material with other enclaves.  Crucially, key material is only shared after
+\emph{mutual authentication}.  Key synchronization happens in three steps.
 
 % TODO: Add a diagram that explains the protocol.
 
-\paragraph{First,} once a new enclave is spun up, we instruct the original enclave to synchronize its key material with the new enclave. We issue an authenticated request (the exact authentication mechanism is to be determined) to the enclave, and set the domain name of the new enclave in the request body.
+\paragraph{First,} once a new enclave is spun up, we instruct the original
+enclave to synchronize its key material with the new enclave. We issue an
+authenticated request (the exact authentication mechanism is to be determined)
+to the enclave, and set the domain name of the new enclave in the request body.
 
-\paragraph{Second,} upon receiving the synchronization request, the original enclave first asks the new enclave for an attestation document, to convince itself that it’s sharing its sensitive key material with the same code that the original enclave is running. Crucially, the original enclave provides a secret key sk and asks for it to be added to the “user data” field of the attestation document.
+\paragraph{Second,} upon receiving the synchronization request, the original
+enclave first asks the new enclave for an attestation document, to convince
+itself that it’s sharing its sensitive key material with the same code that the
+original enclave is running. Crucially, the original enclave provides a secret
+key sk and asks for it to be added to the “user data” field of the attestation
+document.
 
-\paragraph{Third,} if the original enclave could verify the new enclave’s attestation document, it proceeds by sharing its key material. In particular, the original enclave makes a separate request whose body contains the key material encrypted with sk, and the original enclave’s attestation document. The new enclave verifies the original enclave’s attestation document. If the verification succeeds, it proceeds to use the provided key material.
+\paragraph{Third,} if the original enclave could verify the new enclave’s
+attestation document, it proceeds by sharing its key material. In particular,
+the original enclave makes a separate request whose body contains the key
+material encrypted with sk, and the original enclave’s attestation document.
+The new enclave verifies the original enclave’s attestation document. If the
+verification succeeds, it proceeds to use the provided key material.
 
 \subsubsection{Logging}
 \label{sec:logging}
@@ -157,4 +351,11 @@ The general idea is that there exists an ``original'' enclave that was started b
 \subsubsection{Thwarting Side-channel Attacks}
 \label{sec:side-channels}
 
-The enclave's parent EC2 image cannot see \emph{what} clients submit but it can see \emph{how much} clients submit and \emph{how long} it takes the enclave to process data.  The EC2 image can exploit this timing and volume side channel to learn more about the client's confidential information.  While such side channels must be avoided, our framework is not the place to do so.  Instead, it is the application developer's responsibility to identify and address side channels.  Section~\ref{sec:applications} introduces three applications and discusses side channel attacks in their respective setting.
+The enclave's parent EC2 image cannot see \emph{what} clients submit but it can
+see \emph{how much} clients submit and \emph{how long} it takes the enclave to
+process data.  The EC2 image can exploit these side channels to learn more
+about the client's confidential information and computation.  While such side
+channels must be avoided, our framework is not the place to do so.  Instead, it
+is the application developer's responsibility to identify and address side
+channels.  Section~\ref{sec:applications} introduces three applications and
+discusses side channel attacks in their respective setting.
