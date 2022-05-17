@@ -40,7 +40,7 @@ We begin with a short, informal overview of our system to provide intuition.
 The subsequent sections are going to elaborate on this high-level picture.  
 
 \begin{enumerate}
-    \item The service provide implements a new service with the intention of
+    \item The service provider implements a new service with the intention of
       running it in an enclave.  Once the implementation is finished, the
       service provider publishes the source code for the clients to audit, and
       runs the code in an enclave.  After booting, the enclave obtains a
@@ -60,10 +60,10 @@ The subsequent sections are going to elaborate on this high-level picture.
       \emph{and} the fingerprint of the enclave's CA-signed certificate.  The
       resulting attestation document is returned to the client.
 
-    \item The client performs various checks (see \S~\ref{sec:} for details)
-      and trusts the enclave if all checks pass.  The client is then convinced
-      that it's communicating with the code that she audited in the previous
-      steps, and is willing to reveal its sensitive information to the enclave.
+    \item The client performs various checks (see \S~\ref{sec:} for details) and
+      trusts the enclave if all checks pass.  The client is then convinced that
+      it's communicating with the code that the user audited in the previous
+      steps, and is willing to reveal her sensitive information to the enclave.
 \end{enumerate}
 
 % As illustrated in Figure~\ref{fig:overview}, clients submit their IP address
@@ -96,7 +96,7 @@ The subsequent sections are going to elaborate on this high-level picture.
 Only a small subset of the users will be skilled enough programmers to audit
 the enclave's code for bugs.  We expect non-technical users to trust that other
 users---or perhaps professional code audit companies---have studied the code
-and pointed out potential bugs.  Once a user convinced herself of the code's
+and pointed out potential bugs.  Once a user has convinced herself of the code's
 correctness, she compiles the code to arrive at an image ID.  Crucially, we
 need a \emph{deterministic mapping} between the code and its corresponding
 image ID because the service provider and clients must agree on the image ID
@@ -227,7 +227,7 @@ The application can register arbitrary handlers.
 \subsubsection{Remote Attestation}
 \label{sec:attestation}
 
-After the client established an HTTPS connection with the enclave, it needs to
+After the client establishes an HTTPS connection with the enclave, it needs to
 know that (\emph{i}) the TLS connection it just established is terminated
 inside the enclave (instead of by the EC2 machine) and (\emph{ii}) the enclave
 is running the code that the user audited in the previous step.  To that end,
