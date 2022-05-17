@@ -1,44 +1,82 @@
 \section{Related Work}
 \label{sec:related-work}
 
-\begin{itemize}
-    \item https://openenclave.io/sdk/
-    \item Project Oak
-    \item Google Asylo
-\end{itemize}
+Arnautov et al. present in their OSDI'16 paper a mechanism that allows Docker
+containers to run in an SGX enclave~\cite{Arnautov2016a}---conceptually similar
+to Nitro Enclaves, which are effectively compiled Docker images.
+%
+In their 2022 arXiv report, King and Wang~\cite{King2022a} propose HTTPA---an
+SGX-based extension to HTTP that makes a Web server attestable to clients.  Our
+framework also allows for attestable Web services, but without modifications to
+HTTP.
 
-Lee et al. propose Keystone in their EuroSys'20 paper~\cite{Lee2020a}---an open
-framework for the construction of secure enclaves based on the RISC-V
-instruction set.  Keystone is customizable, open source, and based on commodity
-hardware.
+\paragraph{Applications of Enclaves}
 
-Work is similar to privacy-preserving analytics (PROCHLO/RAPPOR) but differs in the sense that clients have an incentive to lie, and we therefore cannot trust their reports.
+Researchers have proposed numerous and diverse enclave-enabled systems, ranging
+from DeFi oracles~\cite{Zhang16a}, to health apps for
+COVID-19~\cite{Mailthody21a}, to networking middleboxes~\cite{Han17a}.  Despite
+avid interest in academia, large-scale, real-world deployments of enclaves are
+sparse.  In 2017, the Signal secure messenger published a blog post on private
+contact discovery~\cite{Marlinspike17a}, which makes it possible for Alice to
+discover which of the contacts in her address book use Signal without revealing
+her contact list.  The Signal team accomplished this by relying on an SGX
+enclave that runs the contact discovery code.  Two years later, in 2019, the
+Signal team built its ``secure value recovery'' feature on SGX as
+well~\cite{Lund19a}.
 
-\subsection{IP Address *nymization}
+\paragraph{Frameworks for Enclave Development}
 
-% How is our work different from traffic trace anonymization.
+To facilitate working with enclaves, several frameworks have emerged that
+abstract away complicated and error-prone low-level aspects of enclaves.
+Examples are Asylo~\cite{asylo} and Open Enclave~\cite{openenclave}---both
+libraries are implemented in C/C++ and are hardware agnostic, meaning that the
+``enclave backend'' can be switched from, say, TrustZone to SGX.  While
+frameworks render enclave development more convenient, memory unsafe languages
+like C and C++ make it dangerously easy to introduce memory corruption bugs
+that may jeopardize the security of the enclave~\cite{Lee2017a}.  Cognizant of
+this issue, Wang et al. implemented a performant Rust layer on top of Intel's
+C++-based SGX SDK, making it possible to develop memory-safe applications in
+SGX~\cite{Wang2019a}.
 
-In their 2006 CCR article, Pang et al. summarize their experience in obtaining permission to publish packet traces, implementing the anonymization policy, and demonstrating its correctness~\cite{Pang06a}.
+Our framework is built in the memory-safe Go programming language, which
+eliminates an entire class of bugs that could jeopardize the security of
+enclave applications, and unlike Asylo and Open Enclave, our framework only
+supports Nitro Enclaves because the security guarantees of a framework are only
+as strong as the underlying enclave hardware, and in the case of Intel, ARM,
+and AMD, side channel attacks are a severe concern.
 
-Difficult to anonymize traces~\cite{Burkhart10a}. Trade-off~\cite{Mohammady15a}
+\paragraph{Attacks Against Enclaves}
 
-\subsection{Applications of Secure Enclaves}
+Enclaves based on Intel's SGX technology share a CPU with untrusted code, which
+raises the flood gates for side channel attacks.  Consequently, attacks have
+taken advantage of
+speculative execution~\cite{VanBulck2018a,VanSchaik2021a},
+branch ``shadowing''~\cite{Lee2017b},
+the interface between SGX and non-SGX code~\cite{Bulck19a},
+software faults~\cite{Murdock2020a},
+shared caches~\cite{Brasser2017a},
+and memory management~\cite{Wang2017a}.
+Despite the considerable number of practical attacks, there is opportunity to
+strengthen SGX against side channel attacks.  Oleksenko et al. introduce in
+their ATC'18 paper a system that protects unmodified SGX applications from side
+channel attacks by executing the enclave code on a CPU separate from the
+untrusted code.  Note that this is the default for Nitro Enclaves.
 
-Researchers have proposed numerous and diverse enclave-enabled systems, ranging from DeFi oracles~\cite{Zhang16a}, to health apps for COVID-19~\cite{Mailthody21a}, to networking middleboxes~\cite{Han17a}.
+For a comprehensive overview of attacks against SGX, refer to Fei et al.'s
+survey~\cite{Fei2021a} and Nilsson et al.'s arXiv report~\cite{Nilsson20a}.
 
-Despite avid interest in academia, real-world deployments of enclaves are sparse.  In 2017, the Signal secure messenger published a blog post on private contact discovery~\cite{Marlinspike17a}, which makes it possible for Alice to discover which of the contacts in her address book use Signal without revealing her contact list.  The Signal team accomplished this by relying on an SGX enclave that runs the contact discovery code.  Two years later, in 2019, the Signal team built its ``secure value recovery'' feature on SGX as well~\cite{Lund19a}.
+Among all currently-available commodity enclaves, Intel's SGX has received the
+most attention from academia but ARM's TrustZone and AMD's SEV have not been
+spared and share SGX's conceptual security flaws.  In a CCS'19 paper, Ryan
+demonstrates an attack that exfiltrates ECDSA private keys from Qualcomm's
+implementation of a hardware-backed keystore which is based on
+TrustZone~\cite{Ryan2019a}.  Similarly, Li et al. showed in a USENIX
+Security'21 paper how an attacker can exfiltrate private keys from AMD
+SEV-protected memory regions.  In a CCS'21 paper, Li et al. showed how an
+attacker-controlled VM can read encrypted page tables, and how an attacker can
+create an oracle for encryption and decryption.
 
-\subsection{Attacks Against Secure Enclaves}
-
-https://sgaxe.com/files/SGAxe.pdf
-
-\textsc{Foreshadow}~\cite{Bulck18a}
-\cite{Bulck19a}
-
-
-Nilsson et al. surveyed existing SGX attacks in a 2020 arXiv report~\cite{Nilsson20a}.
-
-\subsection{Libraries}
-
-Open Enclave SDK provides an SDK for C and C++ that facilitates enclave development for SGX and TrustZone.
-https://github.com/openenclave/openenclave
+While Nitro Enclaves are still young and have received nowhere near the same
+scrutiny as SGX and friends, we believe that their dedicated hardware resources
+provides considerably higher protection from side channel attacks than enclaves
+that are based on shared CPU resources.
