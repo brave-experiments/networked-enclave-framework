@@ -13,6 +13,8 @@ We demonstrate the practicality of our system by building on it to solve three r
 
 \subsection{IP Address Anonymizer}
 
+Difficult to anonymize traces~\cite{Burkhart10a}. Trade-off~\cite{Mohammady15a}
+
 Our first application is a system that originally motivated us to build the enclave framework. Consider a service provider that offers various services to its users.  The service provider seeks to know as little as possible about its users, which means that it doesn't capture and store any of its users' IP addresses.  IP addresses are however an important signal in the service provider's fight against a subset of its users that commit fraud.  This constitutes a conundrum: Should the service provider collect all its users' IP addresses to strengthen its anti-fraud efforts?  Or continue to drop them, and tolerate the fraud?
 
 This section presents an application that strikes a balance between these two extremes; an IP address anonymization system that can verifiably---thanks to enclaves---anonymize IP addresses.  The service provider can then run its anti-fraud logic over anonymized IP addresses rather than real ones.  While some information is lost in the process, we argue that what's most important---the relationship between IP addresses---can be preserved thanks to our use of Xu et al.'s Crypto-PAn scheme~\cite{Xu01a}.  Crypto-PAn encrypts both IPv4 and IPv6 addresses by implementing a 1:1 mapping $f$ that is keyed by $k$ from an IP address to its anonymized equivalent while \emph{preserving the address's prefix}, i.e., two IP addresses that share an $n$-bit prefix also share an $n$-bit prefix after anonymization as illustrated by the following example:

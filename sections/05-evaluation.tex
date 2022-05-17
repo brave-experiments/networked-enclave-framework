@@ -16,6 +16,8 @@ Having proposed our enclave construction framework, we now evaluate it with resp
 
 The fetching of attestation documents is a critical part of our framework's overall performance.  We wrote a stress test tool that requests as many attestation documents as it can over sixty seconds.  The tool is essentially a minimal enclave application that does nothing beyond requesting attestation documents.  For each attestation document, we asked the hypervisor to include an incrementing nonce, to avoid any speedups by caching.  We were able to receive approximately 900 documents per second, with each request taking a median of one millisecond ($s = 0.3\,\text{ms}$) to fetch the attestation document.\footnote{We performed our measurements on a c5.xlarge EC2 instance which comes with four CPUs and eight GiB of memory.}
 
+Faster than Intel's attestation service~\cite{Chen2019a}?
+
 \subsubsection{End-to-end Performance}
 \label{sec:end-to-end}
 

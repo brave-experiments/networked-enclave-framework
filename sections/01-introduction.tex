@@ -1,31 +1,105 @@
 \section{Introduction}
 
 % What's the problem that we're trying to solve.
-Real-world applications of secure enclaves are rare; in part because they're difficult to use, error-prone, and vulnerable to side channel attacks.  Recent cloud-based solutions solve some of those problems.  Hardware-based isolation greatly mitigates the problem of side channel attacks but enclaves are still difficult to use, requiring lots of tooling and glue code to work.
+First introduced in 2015, Intel's SGX technology inspired both numerous use
+cases and increasingly sophisticated attacks.  Researchers successfully adapted
+speculative execution attacks~\cite{VanBulck2018a}, injected software
+faults~\cite{Murdock2020a}.
+% TODO: Add more examples.
+The core problem that most attacks take advantage of is that the untrustworthy
+operating system and the secure enclave \emph{share a CPU}, which opens the
+flood gates for side channel attacks.
+
+% How Nitro Enclaves are better.
+Google's and Microsoft's offerings are built on top of SGX and TrustZone, and
+therefore inherit side channel attacks that plague the respective architecture.
+Of particular interest is AWS's Nitro Enclaves because enclaves are assigned
+dedicated hardware, and don't share a CPU with the untrustworthy operating
+system.  Despite the more secure design, Nitro Enclaves are difficult to use.
+Documentation is sparse, few applications exist so far, and enclaves can only
+interact with the outside world via a constrained VSOCK interface.
 
 % Our solution to the aforementioned problems.
-In this work, we present the design, implementation, and real-world application of a software framework that facilitates the development of networked secure enclaves, i.e., applications that run inside a secure enclave while being able to talk to endpoints on the Internet.  Among other features, our framework (\emph{i}) makes it possible for clients to remotely attest the enclave's authenticity; (\emph{ii}) allows for horizontal scaling of enclaves by synchronizing secret key material; (\emph{iii}) and abstracts away the constrained VSOCK interface between host and enclave.  Our framework builds on top of the recently-introduced AWS Nitro Secure Enclaves~\cite{nitro-enclaves}.  Unlike Intel's SGX technology, Nitro Enclaves have dedicated CPUs that are not shared with the host operating system, thus eliminating side-channel attacks, which have plagued SGX for a long time~\cite[\S~III]{Nilsson20a}.  While some aspects of our framework are specific to AWS, the protocol designs generalize and could be adapted for other types of enclaves.
+In this work, we present the design, implementation, and real-world application
+of a software framework that facilitates the development of networked secure
+enclaves, i.e., applications that run inside a secure enclave while being able
+to talk to endpoints on the Internet.  Among other features, our framework
+(\emph{i}) makes it possible for clients to remotely attest the enclave's
+authenticity; (\emph{ii}) allows for horizontal scaling of enclaves by
+synchronizing secret key material; (\emph{iii}) and abstracts away the
+constrained VSOCK interface between host and enclave.  Our framework builds on
+top of the recently-introduced AWS Nitro Secure Enclaves~\cite{nitro-enclaves}.
+Unlike Intel's SGX technology, Nitro Enclaves have dedicated CPUs that are not
+shared with the host operating system, thus eliminating side-channel attacks,
+which have plagued SGX for a long time~\cite[\S~III]{Nilsson20a}.  While some
+aspects of our framework are specific to AWS, the protocol designs generalize
+and could be adapted for other types of enclaves.
 
 % Challenges that we had to overcome.
-During the development of our framework, we had to overcome several challenges.  First, AWS Nitro Enclaves are meant to be highly constrained environments and therefore lack a dedicated networking interface.  We equip enclaves with the ability to receive and establish networking connections while maintaining an allow list of destinations, for defense in depth in case of compromise.
+During the development of our framework, we had to overcome several challenges.
+First, AWS Nitro Enclaves are meant to be highly constrained environments and
+therefore lack a dedicated networking interface.  We equip enclaves with the
+ability to receive and establish networking connections while maintaining an
+allow list of destinations, for defense in depth in case of compromise.
 %
-Second, the attestation process was not designed to be done over the Internet.  To assure clients that they are communicating with an authentic enclave, we had to find a mechanism to bind a TLS session to an attestation document.
+Second, the attestation process was not designed to be done over the Internet.
+To assure clients that they are communicating with an authentic enclave, we had
+to find a mechanism to bind a TLS session to an attestation document.
 %
-Third, we had to devise a reproducible and yet easy-to-execute build pipeline that allows clients---regardless of their operating system---to compile the application that is running inside the enclave and end up with the same checksum that the service provider ends up with.
+Third, we had to devise a reproducible and yet easy-to-execute build pipeline
+that allows clients---regardless of their operating system---to compile the
+application that is running inside the enclave and end up with the same checksum
+that the service provider ends up with.
 %
-Fourth, there is no out-of-the-box way for enclaves to scale horizontally while synchronizing their key material.  We therefore designed a mechanism that allows enclaves to synchronize their key material.
+Fourth, there is no out-of-the-box way for enclaves to scale horizontally while
+synchronizing their key material.  We therefore designed a mechanism that allows
+enclaves to synchronize their key material.
 
 % Evaluation.
-Having overcome all these challenges, we implemented an easy-to-use Go framework that abstracts away the nuances of working with networked enclaves.  We show our framework's potential by conducting performance measurements, and we demonstrate its use and robustness by building three production-quality applications on top of it: (\emph{i}) an IP address anonymization service, (\emph{ii}) a $k$-anonymity service that is part of a privacy-preserving telemetry system, and (\emph{iii}) a service that provides epoch-based randomness for clients.  We deployed our first application, the IP address anonymization service, to TODO users and report on our deployment and operational experience.
+Having overcome all these challenges, we implemented an easy-to-use Go framework
+that abstracts away the nuances of working with networked enclaves.  
+
+No memory corruption because of Go
+
+
+
+We show our
+framework's potential by conducting performance measurements, and we demonstrate
+its use and robustness by building three production-quality applications on top
+of it: (\emph{i}) an IP address anonymization service, (\emph{ii}) a
+$k$-anonymity service that is part of a privacy-preserving telemetry system, and
+(\emph{iii}) a service that provides epoch-based randomness for clients.  We
+deployed our first application, the IP address anonymization service, to TODO
+users and report on our deployment and operational experience.
 
 \paragraph{Contributions}
 
-This work makes three core contributions.  First, the design and implementation of a freely available Go framework that facilitates the implementation and deployment of enclave applications.  The framework consists of a library that an application can use to run as an enclave, and tooling that facilitates deterministic builds and seamless communication with the secure enclave.
+This work makes three core contributions.
 %
-Second, we make it possible via our framework to turn enclaves into networked applications.
+First, the design and implementation of a freely available Go framework that
+facilitates the implementation and deployment of enclave applications.  The
+framework consists of a library that an application can use to run as an
+enclave, and tooling that facilitates deterministic builds and seamless
+communication with the secure enclave.
 %
-Third, we demonstrate the use of our framework by applying it in three production-quality code bases; (\emph{i}) in a system that anonymizes client IP addresses, (\emph{ii}) to run an OPRF service, and to (\emph{iii}) run a server that's part of a private telemetry system.  We further evaluate our prototypes with respect to performance and security---especially related to code complexity.
+Second, we make it possible via our framework to turn enclaves into networked
+applications.
+%
+Third, we demonstrate the use of our framework by applying it in three
+production-quality code bases; (\emph{i}) in a system that anonymizes client IP
+addresses, (\emph{ii}) to run an OPRF service, and to (\emph{iii}) run a server
+that's part of a private telemetry system.  We further evaluate our prototypes
+with respect to performance and security---especially related to code
+complexity.
 
 \paragraph{Structure}
 
-Section~\ref{sec:background} provides background on secure enclaves in general and AWS Nitro Enclaves in particular.  Section~\ref{sec:design} introduces the design and implementation of our software framework in addition to the build process that guarantees reproducible enclave application builds, followed by Section~\ref{sec:applications} which presents three production-quality applications that are built on top of our framework.  We measure our framework's networking performance in Section~\ref{sec:evaluation} and discuss its limitations in Section~\ref{sec:discussion}.  We conclude our work in Section~\ref{sec:related-work} by putting it in the context of past work.
+Section~\ref{sec:background} provides background on secure enclaves in general
+and AWS Nitro Enclaves in particular.  Section~\ref{sec:design} introduces the
+design and implementation of our software framework in addition to the build
+process that guarantees reproducible enclave application builds, followed by
+Section~\ref{sec:applications} which presents three production-quality
+applications that are built on top of our framework.  We measure our framework's
+networking performance in Section~\ref{sec:evaluation} and discuss its
+limitations in Section~\ref{sec:discussion}.  We conclude our work in
+Section~\ref{sec:related-work} by putting it in the context of past work.

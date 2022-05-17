@@ -227,6 +227,10 @@ The application can register arbitrary handlers.
 \subsubsection{Remote Attestation}
 \label{sec:attestation}
 
+By default, Nitro Enclaves only allow for local attestation.
+
+we could have also dont it via certificate extension~\cite[\S~3.2]{Knauth2019a}
+
 After the client establishes an HTTPS connection with the enclave, it needs to
 know that (\emph{i}) the TLS connection it just established is terminated
 inside the enclave (instead of by the EC2 machine) and (\emph{ii}) the enclave
@@ -308,6 +312,8 @@ accordingly.
 \subsubsection{Sharing Key Material}
 \label{sec:sync}
 
+Compare to \cite{Chen2022a}.
+
 Recall that enclaves are essentially sealed black boxes at runtime, preventing
 anyone (including Amazon) from extracting key material that was generated
 inside the enclave.  While this is a desirable property, it complicates
@@ -359,3 +365,11 @@ channels must be avoided, our framework is not the place to do so.  Instead, it
 is the application developer's responsibility to identify and address side
 channels.  Section~\ref{sec:applications} introduces three applications and
 discusses side channel attacks in their respective setting.
+
+Similarly, programming bugs in the enclave application are also out of scope
+for this work.  Memory corruption attacks me be more difficult to implement
+against enclave applications\footnote{The untrustworthy operating system (that
+may be under the attacker's control) is prohibited by hardware to read the
+enclave application's memory or registers in clear text, which forces the
+attacker to operate blindly.} but Lee et al. showed that it's possible, by
+adapting a return-oriented programming attack against SGX~\cite{Lee2017a}.
