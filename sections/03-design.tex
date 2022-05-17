@@ -60,10 +60,11 @@ The subsequent sections are going to elaborate on this high-level picture.
       \emph{and} the fingerprint of the enclave's CA-signed certificate.  The
       resulting attestation document is returned to the client.
 
-    \item The client performs various checks (see \S~\ref{sec:} for details) and
-      trusts the enclave if all checks pass.  The client is then convinced that
-      it's communicating with the code that the user audited in the previous
-      steps, and is willing to reveal her sensitive information to the enclave.
+    \item The client performs various checks (see \S~\ref{sec:attestation} for
+      details) and trusts the enclave if all checks pass.  The client is then
+      convinced that it's communicating with the code that the user audited in
+      the previous steps, and is willing to reveal her sensitive information to
+      the enclave.
 \end{enumerate}
 
 % As illustrated in Figure~\ref{fig:overview}, clients submit their IP address
