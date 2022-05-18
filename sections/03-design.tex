@@ -369,3 +369,50 @@ may be under the attacker's control) is prohibited by hardware to read the
 enclave application's memory or registers in clear text, which forces the
 attacker to operate blindly.} but Lee et al. showed that it's possible, by
 adapting a return-oriented programming attack against SGX~\cite{Lee2017a}.
+
+\subsubsection{An Example}
+
+Figure~\ref{fig:hello-world} illustrates an example of a simple ``hello world''
+application.  The code initializes a new enclave struct (line 16), followed by
+adding a handler that processes requests for \texttt{GET /hello-world} (line
+24).  Finally, the application starts the enclave using a function call that
+does not return (line 27).
+
+\begin{figure}[t]
+\begin{lstlisting}
+package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+
+    nitro "REDACTED"
+)
+
+func handler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintln(w, "hello world")
+}
+
+func main() {
+    enclave := nitro.NewEnclave(
+        &nitro.Config{
+            FQDN:    "example.com",
+            Port:    8080,
+            UseACME: true,
+            Debug:   false,
+        },
+    )
+    enclave.AddRoute(http.MethodGet,
+                     "/hello-world",
+                     handler)
+    if err := enclave.Start(); err != nil {
+        log.Fatalf("Terminated: %v", err)
+    }
+}
+\end{lstlisting}
+\caption{An example of a simple enclave application which registers an HTTP GET
+  handler for the path /hello-world (line 24) and, when accessed, responds with
+  the string ``hello world'' in the response body (line 12).}
+\label{fig:hello-world}
+\end{figure}
