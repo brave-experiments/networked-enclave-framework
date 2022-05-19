@@ -4,19 +4,29 @@
 \node [draw, below=of client1] (client2) {Client 2};
 \node [draw, below=of client2] (client3) {Client 3};
 
-\node [draw, align=center, right=1.7 cm of client2] (shuffler) {Shuffler\\($k=2$)};
-\node [draw, right=1.7 cm of shuffler] (backend) {Back end};
+\node [draw,
+       align=center,
+       fill=black!20!gray,
+       minimum width=40pt,
+       right=1.7 cm of client2] (ec2) {{\color{white} EC2}};
+\node [draw,
+       minimum width=40pt,
+       below=0pt of ec2] (enclave) {Enclave};
 
-\draw [-latex] (client1.east) -- ([yshift=3pt]shuffler.west)
+\node [draw,
+       fill=black!20!gray,
+       right=1.7 cm of ec2] (backend) {{\color{white} Back end}};
+
+\draw [-latex] (client1.east) -- ([yshift=3pt]ec2.west)
       node [midway, fill=black!10] {{\footnotesize key=foo}};
 
-\draw [-latex] (client2.east) -- (shuffler.west)
+\draw [-latex] (client2.east) -- (ec2.west)
       node [midway, fill=black!10] {{\footnotesize key=foo}};
 
-\draw [-latex] (client3.east) -- ([yshift=-3pt]shuffler.west)
+\draw [-latex] (client3.east) -- ([yshift=-3pt]ec2.west)
       node [midway, fill=black!10] {{\footnotesize key=bar}};
 
-\draw [-latex] (shuffler.east) -- (backend.west)
+\draw [-latex] (ec2.east) -- (backend.west)
       node [midway, fill=black!10] {{\footnotesize key=foo}};
 
 \end{tikzpicture}
