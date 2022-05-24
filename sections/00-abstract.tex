@@ -1,20 +1,20 @@
 \begin{abstract}
 
-Amazon recently introduced cloud-based Nitro Enclaves whose use of dedicated
-CPUs for the enclave promises resistance against side channel attacks that have
-plagued Intel's SGX for years.  Despite the promising security properies, Nitro
-Enclaves are difficult to use and not meant to be used as a networked service,
-which greatly limits their potential.
+Amazon recently introduced cloud-based enclaves---called Nitro enclaves.  These
+enclaves do not share hardware with untrustworthy code, promising resistance
+against side channel attacks, which have plagued Intel's SGX for years.  While
+the security properties are attractive, Nitro enclaves are difficult to use and
+not meant to be used as a networked service, which greatly limits their
+potential.
 %
 We build a framework that allows for convenient and flexible use of secure
 enclaves.  We abstract away complex aspects like remote attestation and
-end-to-end encryption and implement a library that allows for simpler secure
+end-to-end encryption and implement a library that allows for simpler, secure
 enclaves.
 %
-To demonstrate the practicality of our framework, we design and implement three
+To demonstrate the practicality of our framework, we design and implement two
 production-grade systems on top of our framework; for IP address
-pseudonymization, private telemetry, and a service that provides randomness as
-part of a secret sharing system.
+pseudonymization and private telemetry.
 %
 We find that our framework enables quick prototyping, can be adapted to
 different use cases, and inherits strong security and performance properties

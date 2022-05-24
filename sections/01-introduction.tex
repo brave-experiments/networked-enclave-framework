@@ -14,8 +14,8 @@ advantage of is that the untrustworthy operating system and the enclave
 In 2020, several cloud providers began offering ``confidential computing''
 solutions; Google's is based on SEV~\cite{googlecc} while Microsoft's is based
 on SGX~\cite{azurecc}.  Both offerings inherit the attack classes that plague
-the respective architectures.  Amazon tread a different path by inventing a new
-enclave architecture---called Nitro enclaves---from the ground
+their respective architectures.  Amazon tread a different path by inventing a
+new enclave architecture---called Nitro enclaves---from the ground
 up~\cite{nitro-enclaves}.  Nitro enclaves are essentially virtual machine that
 run on dedicated CPUs that are not shared with untrustworthy code.  While the
 architecture appears promising, Nitro enclaves remain difficult to use:
@@ -55,11 +55,12 @@ enclaves to synchronize their key material.
 Having overcome the above challenges, we implemented an easy-to-use Go framework
 that abstracts away the nuances of working with networked enclaves.  The use of
 Go helps keep the trusted computing base small and greatly reduces the risk of
-memory corruption bugs.  We show our framework's potential by conducting
-performance measurements, and we demonstrate its use and robustness by building
-two production-quality applications on top of it; (\emph{i}) an IP address
-pseudonymization service, and (\emph{ii}) a $k$-anonymity service that is part
-of a privacy-preserving telemetry system.
+memory corruption bugs.  We conduct latency measurements to show that our
+framework can handle high-throughput and real-time applications, and we
+demonstrate its usefulness and robustness by building two production-quality
+applications on top of it; (\emph{i}) an IP address pseudonymization service,
+and (\emph{ii}) a $k$-anonymity service that is part of a privacy-preserving
+telemetry system.
 
 \paragraph{Contributions}
 
@@ -72,14 +73,11 @@ enclave, and tooling that facilitates deterministic builds and seamless
 communication with the secure enclave.
 %
 Second, we make it possible via our framework to turn enclaves into networked
-applications.
+applications that can easily scale horizontally to respond to increases in load.
 %
-Third, we demonstrate the use of our framework by applying it in three
-production-quality code bases; (\emph{i}) in a system that anonymizes client IP
-addresses, (\emph{ii}) to run an OPRF service, and to (\emph{iii}) run a server
-that's part of a private telemetry system.  We further evaluate our prototypes
-with respect to performance and security---especially related to code
-complexity.
+Third, we build two real-world applications on top of our framework.  The design
+of the first application---an IP address pseudonymization system---is a
+contribution in its own right.
 
 \paragraph{Structure}
 

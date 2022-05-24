@@ -1,34 +1,83 @@
 \section{Evaluation}
 \label{sec:evaluation}
 
-Having proposed our enclave construction framework, we now evaluate it with respect to practicality, performance, and security.
+We now evaluate both throughput and latency of our enclave framework.
 
-\subsection{Performance}
-\label{sec:performance}
-
-\begin{itemize}
-    \item Throughput. How much data can we shove through the VSOCK interface?
-    \item Latency. What's the additional latency (if any) of talking to an application through the VSOCK interface compared to directly?
-\end{itemize}
-
-\subsubsection{Attestation Documents}
+\subsection{Attestation Documents}
 \label{sec:attestation-performance}
 
-The fetching of attestation documents is a critical part of our framework's overall performance.  We wrote a stress test tool that requests as many attestation documents as it can over sixty seconds.  The tool is essentially a minimal enclave application that does nothing beyond requesting attestation documents.  For each attestation document, we asked the hypervisor to include an incrementing nonce, to avoid any speedups by caching.  We were able to receive approximately 900 documents per second, with each request taking a median of one millisecond ($s = 0.3\,\text{ms}$) to fetch the attestation document.\footnote{We performed our measurements on a c5.xlarge EC2 instance which comes with four CPUs and eight GiB of memory.}
+The fetching of attestation documents is a critical part of our framework's
+overall performance.  We wrote a stress test tool that requests as many
+attestation documents as it can over sixty seconds.  The tool is essentially a
+minimal enclave application that does nothing but requesting attestation
+documents.  For each attestation document, we asked the hypervisor to include
+an incrementing nonce, to avoid any speedups by caching.  We were able to
+receive approximately 900 documents per second, with each request taking a
+median of one millisecond ($s = 0.3\,\text{ms}$) to fetch the attestation
+document.\footnote{We performed our measurements on a c5.xlarge EC2 instance
+which comes with four CPUs and eight GiB of memory.}
 
-Faster than Intel's attestation service~\cite{Chen2019a}?
+\subsection{Test setup}
+\label{sec:test-setup}
 
-\subsubsection{End-to-end Performance}
-\label{sec:end-to-end}
-
-Next, we set out to measure the networking throughput of the critical path, as illustrated in Figure~\ref{fig:stress-test}.  In particular, we test latency and throughput of our TCP proxy, the VSOCK interface between EC2 and enclave, and a minimal enclave application.  To rule out unnecessary computation in the enclave application, we implemented a simple service whose only job it is to respond with the string ``hello world'' when clients request the path /hello-world.  To simulate clients, we use the HTTP load test tool Baton~\cite{baton}, which sends concurrent HTTP requests to the application.  We run Baton on the parent EC2 instance and make it send requests to the TCP proxy.  Note that this test setup constitutes a \emph{lower bound} of the performance that is achievable.  Real-world applications will be slower because clients send their request over the Internet (which adds latency) and the enclave application is likely to be more complex (which adds latency).
+Next, we set out to measure the networking latency of the critical path, as
+illustrated in Figure~\ref{fig:stress-test}.  In particular, we test the
+latency of our TCP proxy, the VSOCK interface between EC2 and enclave, and a
+minimal enclave application.
+%
+We measure latency in three separate setups, designed to help us understand how
+much latency each component in our data flow adds:
 
 \begin{figure}[t]
     \centering
     \input{sections/figures/stress-test}
+    \caption{Our stress test tool tests the performance of our critical path,
+    consisting of the TCP proxy, the VSOCK interface, and Go's HTTP stack in
+    the enclave application.}
     \label{fig:stress-test}
-    \caption{Our stress test tool tests the performance of our critical path, consisting of the TCP proxy, the VSOCK interface, and Go's HTTP stack in the enclave application.}
 \end{figure}
+
+\begin{description}
+  \item[Full:] This represents the full data flow as it would occur in
+    production, i.e. client $\rightarrow$ TCP proxy $\rightarrow$ VSOCK
+    interface $\rightarrow$ enclave application.
+
+  \item[No proxy:] This setup does not contain the TCP proxy, i.e., the client
+    talks to the VSOCK interface directly, i.e. client $\rightarrow$ VSOCK
+    interface $\rightarrow$ enclave application.
+
+  \item[Direct:] This setup does not contain the TCP proxy and the VSOCK
+    interface.  Instead, the client directly talks to the application that is
+    running \emph{outside} the enclave, i.e., client $\rightarrow$ application.
+\end{description}
+
+As part of our measurement setup, We first deploy the code from
+Figure~\ref{fig:hello-world}---a minimalistic application that responds with
+the string ``hello world'' upon receiving requests for /hello-world.  It's
+important to use a minimalistic application because we're only interested in
+the latency that is caused by the components \emph{before} a request reaches
+the enclave application.
+
+\subsection{End-to-end Latency}
+\label{sec:end-to-end}
+
+To simulate clients, we use the HTTP load test tool Baton~\cite{baton}.  We run
+Baton on the parent EC2 instance and instruct it to send as many requests to
+the TCP proxy as possible within 30 seconds, using 50 concurrent threads.  We
+had to patch Baton's source code to add VSOCK support (to be able to send
+requests directly to the enclave, via the VSOCK interface) and to log latency
+percentiles.  Note that our measurements constitute a \emph{lower bound} of the
+latency that is achievable.  Real-world applications will exhibit higher
+latency because clients send their requests over the Internet (which adds
+considerable latency) and the enclave application is likely to be more complex
+(which adds computational latency).
+
+Figure~\ref{fig:latency-msmts} illustrates the results for our three test
+setups.  The full pipeline is able to sustain 7,500 requests per second, with a
+mean latency of 12.7 milliseconds.  Removing the proxy increases the requests
+to 14,100 per second and lowers the mean latency to 6.5.  Finally, a direct
+connection to the application---without proxy and VSOCK interface--handles
+27,900 requests per second, and a mean latency of only 3.2 milliseconds.
 
 \begin{figure}[t]
     \centering
@@ -42,9 +91,11 @@ Next, we set out to measure the networking throughput of the critical path, as i
     \bottomrule
     \end{tabular}
     \caption{Using 100 concurrent requests and 100,000 requests in total.}
-    \label{tab:my_label}
+    \label{fig:latency-msmts}
 \end{figure}
 
+Figure~\ref{fig:latency-cdf} shows the empirical CDF of the same latency
+measurements for our three test setups.
 
 \begin{figure}[t]
     \centering
@@ -53,13 +104,20 @@ Next, we set out to measure the networking throughput of the critical path, as i
     \caption{The empirical CDF of the latency distributions of our three test setups.}
 \end{figure}
 
-\subsection{Operational Experience}
-\label{sec:operations}
-
-\begin{itemize}
-    \item We deployed application X on YYYY-MM-DD.
-    \item How many clients were involved?  How many requests per second did they make?
-    \item We published a blog post.  Discuss user reception.
-    \item Discuss how useful we found the system in the context of anti-fraud.
-    \item Discuss operational issues and gotchas.
-\end{itemize}
+% \subsection{Operational Experience}
+% \label{sec:operations}
+%
+%
+% \begin{itemize}
+%     \item We deployed application X on YYYY-MM-DD.
+%
+%     \item How many clients were involved?  How many requests per second did
+%     they make?
+%
+%     \item We published a blog post.  Discuss user reception.
+%
+%     \item Discuss how useful we found the system in the context of
+%     anti-fraud.
+%
+%     \item Discuss operational issues and gotchas.
+% \end{itemize}
