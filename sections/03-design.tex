@@ -318,36 +318,80 @@ Recall that enclaves are essentially sealed black boxes at runtime, preventing
 anyone (including Amazon) from extracting key material that was generated
 inside the enclave.  While this is a desirable property, it complicates
 horizontal scaling.  If a single enclave is unable to handle the service
-provider's traffic load, one must scale horizontally, and start new enclaves.
-For some use cases, it is not acceptable if each enclave maintains its own key
-material.  Instead, it is desirable for enclaves to \emph{share their key
-material} to the outside world perceives a set of enclaves as a single machine.
+provider's traffic load, one must scale horizontally, by starting new enclaves.
+In some use cases, it is unacceptable for each enclave to maintain its own key
+material.  Instead, enclaves must synchronize their key material, so they
+appear to the outside world like a single machine.
 
-The general idea is that there exists an ``original'' enclave that was started
-before any other enclaves. This original enclave must then share its key
-material with other enclaves.  Crucially, key material is only shared after
-\emph{mutual authentication}.  Key synchronization happens in three steps.
+While it is possible to build key synchronization using AWS tools like the key
+management service (KMS),\footnote{One could encrypt the keys using a KMS
+policy that dictates that only enclaves are allowed to decrypt it, and store
+the encrypted key in a location that all enclaves can access, e.g., an S3
+bucket.} we refrain from using these tools because there is no straightforward
+way for users to audit the correct use of these tools.  We therefore devise a
+new protocol that enables key synchronization without having to rely on any
+extra services.
 
-% TODO: Add a diagram that explains the protocol.
+We solve this problem in two steps: \emph{discovery} and
+\emph{synchronization}.  First, enclaves must be able to discover each other,
+i.e., learn each other's IP addresses.  Then, enclaves can establish
+connections to each other and initiate key synchronization.  Our protocol
+dictates that when a new enclave bootstraps, it first tries to discover
+already-existing enclaves.  If there are none, the enclave knows that it is the
+``origin'' enclave; it generates new key material and will share it in the
+future.  If there is are other enclaves, the enclave establishes a connection
+to a randomly-chosen enclave and initiate key synchronization.  Crucially, key
+material is only shared after \emph{mutual attestation}, i.e., the original and
+subsequent enclaves attest each other, and only exchange key material if remote
+attestation succeeded.  Key synchronization happens in three steps, as
+illustrated in Figure~\ref{fig:key-synchronization}.
 
-\paragraph{First,} once a new enclave is spun up, we instruct the original
-enclave to synchronize its key material with the new enclave. We issue an
-authenticated request (the exact authentication mechanism is to be determined)
-to the enclave, and set the domain name of the new enclave in the request body.
+\begin{figure}[t]
+  \centering
+  \input{sections/figures/key-synchronization}
+  \caption{When a new enclave bootstraps, it discovers existing enclaves by
+    obtaining the DNS SRV record for its own, hard-coded FQDN.  The enclave then
+    initiates key synchronization by first requesting a nonce.  Then, the new
+    enclave requests the origin enclave's key material by submitting its own
+    attestation document, followed by receiving the origin enclave's attestation
+    document, which contains encrypted key material.}
+  \label{fig:key-synchronization}
+\end{figure}
 
-\paragraph{Second,} upon receiving the synchronization request, the original
-enclave first asks the new enclave for an attestation document, to convince
-itself that it’s sharing its sensitive key material with the same code that the
-original enclave is running. Crucially, the original enclave provides a secret
-key sk and asks for it to be added to the “user data” field of the attestation
-document.
+\paragraph{First,} once a new enclave is spun up, it queries the DNS SRV record
+of the FQDN that is hard-coded in the enclave, e.g., example.com.  The DNS
+resolver will return the record, containing a list of enclaves that are already
+running.  The new enclave picks a random enclave from the list and initiates
+key synchronization.
 
-\paragraph{Third,} if the original enclave could verify the new enclave’s
-attestation document, it proceeds by sharing its key material. In particular,
-the original enclave makes a separate request whose body contains the key
-material encrypted with sk, and the original enclave’s attestation document.
-The new enclave verifies the original enclave’s attestation document. If the
-verification succeeds, it proceeds to use the provided key material.
+\paragraph{Second,} the new enclave asks the existing enclave for a random
+nonce, $\textrm{nonce}_o$.  The new enclave caches $\textrm{nonce}_o$ for one
+minute.
+
+\paragraph{Third,} the new enclave now requests the key material from the
+existing enclave.  As part of the request, it provides its attestation document
+that contains $\textrm{nonce}_o$ (to prove freshness to the existing enclave);
+$\textrm{nonce}_n$ (the existing enclave is expected to add the nonce to its
+attestation document); and $K_n$ (a public key to which the key material should
+be encrypted).  Upon receipt of the new enclave's attestation document, the
+existing enclave verifies the attestation document's signature and ensures that
+the new enclave is running the same code, i.e., the PCR values are identical.
+Once the new enclave is convinced that it is dealing with a genuine new
+enclave, it creates an attestation document by including $\textrm{nonce}_n$ (to
+prove freshness to the new enclave) and $\textsf{Enc}(K_n, s)$---the key
+material $s$ is encrypted using the public key that the new enclave provided in
+the request.  Finally, the new enclave verifies the attestation document,
+decrypts the key material, and uses it to finish bootstrapping.
+
+% Security considerations.
+Needless to say, the security of key synchronization is critical.  The first
+layer of defense is the fact that enclaves communicate with each other over a
+virtual network that is part of a private Kubernetes cluster.  That means that
+it's not possible for arbitrary Internet hosts to contact an enclave, and
+request its key material.  The second layer of defense is the fact that an
+enclave first has to provide a valid attestation document before obtaining key
+material.  As long as an existing enclave knows that an identical and authentic
+copy of itself is asking for key material, it will readily provide it.
 
 \subsubsection{Thwarting Side-channel Attacks}
 \label{sec:side-channels}

@@ -1,0 +1,42 @@
+\begin{tikzpicture}[node distance=20pt]
+
+  \node [draw,
+         align=center,
+         fill=black!20!gray,
+         minimum height=70pt] (enclave2) {\color{white}New\\\color{white}enclave};
+  \node [draw,
+         align=center,
+         fill=black!20!gray,
+         minimum height=70pt,
+         right=140pt of enclave2] (enclave1) {\color{white}Original\\\color{white}enclave};
+  \node [draw,
+         densely dotted,
+         label=below left:Virtual network,
+         fit=(enclave1) (enclave2)] {};
+
+  \node [draw,
+         above=of enclave2] (resolver) {DNS resolver};
+
+  % New enclave discovers existing enclaves via DNS.
+  \draw [-latex] ([xshift=3pt]enclave2.north) -- ([xshift=3pt]resolver.south)
+        node [midway, right] {Request DNS SRV records};
+  \draw [latex-] ([xshift=-3pt]enclave2.north) -- ([xshift=-3pt]resolver.south);
+
+  % New enclave asks original enclave for nonce.
+  \draw [-latex] ([yshift=30pt]enclave2.east) -- ([yshift=25pt]enclave1.west)
+        node [midway, fill=white, align=center]
+        {\emph{Request nonce}};
+  \draw [latex-] ([yshift=15pt]enclave2.east) -- ([yshift=20pt]enclave1.west)
+        node [midway, fill=white, align=center]
+        {$\textrm{nonce}_o$};
+
+  % New enclave asks for keys.
+  \draw [-latex] (enclave2.east) -- ([yshift=-5pt]enclave1.west)
+        node [midway, fill=white, align=center]
+        {\emph{Request keys}\\$A_{n}(\textrm{nonce}_o\ ||\ K_n\ ||\ \textrm{nonce}_n$)};
+
+  \draw [latex-] ([yshift=-30pt]enclave2.east) -- ([yshift=-25pt]enclave1.west)
+        node [midway, fill=white, align=center]
+        {$A_{o}(\textrm{nonce}_n\ ||\ \textsf{Enc}(K_n, s))$};
+
+\end{tikzpicture}
