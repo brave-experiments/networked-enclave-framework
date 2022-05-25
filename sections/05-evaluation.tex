@@ -104,6 +104,63 @@ measurements for our three test setups.
     \caption{The empirical CDF of the latency distributions of our three test setups.}
 \end{figure}
 
+\subsection{Security Considerations}
+\label{sec:security}
+
+There are X components that are critical to the overall security of enclave
+applications; (\emph{i}) Amazon's Nitro enclave system itself,
+(\emph{ii}) our framework, and (\emph{iii}) the application that runs on top of
+our framework.
+
+The very foundation of our framework's security lies in the soundness of the
+design of Nitro enclaves.  While Amazon published the conceptual design, the
+concrete hardware and software implementation remains confidential.  While
+Amazon's decision to allocate physically separate resources to enclaves appears
+promising, the coming years will tell if the implementation can resist the types
+of attacks that have been plagueing SGX.  If we assume that Nitro enclaves are
+secure, the next critical layer is our software framework.
+
+A significant security aspect of our framework is its size; it is well
+understood that complexity is the enemy of security.  Our framework counts less
+than 700 lines of code and has four direct dependencies that are not maintained
+by either us or the Go project.\footnote{The dependencies are chi~\cite{chi}
+(provides an HTTP request router), nsm~\cite{nsm} (provides an interface to
+interact with the Nitro hypervisor), vsock~\cite{vsock} (provides an API for the
+VSOCK address family), and tenus~\cite{tenus} (provides an API to configure
+Linux's networking devices).} Four is worse than zero, but it is still
+manageable and reasonably easy to audit in its entirety.  We believe that our
+choice of using Go and the deliberately small trusted computing base greatly
+reduces---but not eliminates!---the attack surface.
+
+The highest layer in the software stack is the enclave application itself.  The
+biggest security threat are side channel attacks and programming bugs---both
+unintentional and intentional.  It is the application developer's responsibility
+to prevent side channel attacks and write bug-free code.  As we pointed out in
+Section~\ref{sec:limitations}, programming bugs can be intentional, i.e., the
+service provider may deliberately introduce bugs that leak sensitive
+information, and hope that it won't get caught.
+
+\subsection{Financial Cost}
+\label{sec:cost}
+
+Nitro enclaves do not incur any extra cost in addition to what the underlying
+EC2 instance costs---they can be considered a ``free'' extension to EC2.  Nitro
+enclaves are however only available for select types of EC2 instances because
+they require their own CPU and a minimum amount of memory, and those instance
+types are pricier than the lowest tier that AWS offers.
+
+We are currently working on deploying the IP address pseudonymization prototype
+that we introduced in Section~\ref{sec:pseudonymization}.  We estimate that our
+enclave is going to have to handle an average of TODO requests per day, coming
+from more than ten million clients.
+
+\phw{Elaborate on how often those clients talk to our server infrastructure.}
+
+Our test deployment uses a c5.xlarge EC2 instance in the U.S. East region which
+costs \$0.17 per hour to operate, amounting to approximately \$125 per month.
+
+
+
 % \subsection{Operational Experience}
 % \label{sec:operations}
 %
