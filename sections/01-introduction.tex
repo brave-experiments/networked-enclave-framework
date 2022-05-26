@@ -1,29 +1,30 @@
 \section{Introduction}
 
 % What's the problem that we're trying to solve.
-First introduced in 2015, Intel's SGX technology inspired diverse applications
-but also increasingly sophisticated attacks: Researchers successfully adapted
-speculative execution attacks~\cite{VanBulck2018a}, injected software
-faults~\cite{Murdock2020a}, and exploited side channels introduced by shared
-caches~\cite{Brasser2017a}, all with the goal of exfiltrating information that
-was meant to remain in the enclave.  The underlying flaw that most attacks take
-advantage of is that the untrustworthy operating system and the enclave
-\emph{share a CPU}, which opens the flood gates for side channel attacks.
+First introduced in 2015, Intel's Software Guard Extensions (SGX) technology
+inspired diverse applications but also increasingly sophisticated attacks:
+researchers successfully adapted speculative execution
+attacks~\cite{VanBulck2018a}, injected software faults~\cite{Murdock2020a}, and
+exploited side channels introduced by shared caches~\cite{Brasser2017a}, all
+with the goal of exfiltrating information that was meant to remain in the
+enclave.  The underlying flaw that most attacks take advantage of is that the
+untrustworthy operating system and the enclave \emph{share a CPU}, which opens
+the flood gates for side channel attacks.
 
-% How Nitro Enclaves are better.
+% How Nitro enclaves are better.
 In 2020, several cloud providers began offering ``confidential computing''
-solutions; Google's is based on SEV~\cite{googlecc} while Microsoft's is based
-on SGX~\cite{azurecc}.  Both offerings inherit the attack classes that plague
-their respective architectures.  Amazon tread a different path by inventing a
-new enclave architecture---called Nitro enclaves---from the ground
-up~\cite{nitro-enclaves}.  Nitro enclaves are essentially virtual machine that
-run on dedicated CPUs that are not shared with untrustworthy code.  While the
-architecture appears promising, Nitro enclaves remain difficult to use:
-Documentation is sparse, few applications exist, and enclaves can only interact
-with the outside world via a constrained VSOCK interface.  This paper present
-the design, implementation, and real-world application of a software framework
-that facilitates the development of networked Nitro enclaves.  Key features of
-our framework include
+solutions; Google's is based on AMD's Secure Encrypted Virtualization
+(SEV)~\cite{googlecc} while Microsoft's is based on SGX~\cite{azurecc}.  Both
+offerings inherit the attack classes that plague their respective architectures.
+Amazon tread a different path by inventing a new enclave architecture---called
+Nitro enclaves---from the ground up~\cite{nitro-enclaves}.  Nitro enclaves are
+essentially virtual machines that run on dedicated CPUs that are not shared with
+untrustworthy code.  While the architecture appears promising, Nitro enclaves
+remain difficult to use: Documentation is sparse, few applications exist, and
+enclaves can only interact with the outside world via a constrained VSOCK
+interface.  This paper present the design, implementation, and real-world
+application of a software framework that facilitates the development of
+networked Nitro enclaves.  Key features of our framework include
 (\emph{i}) the ability for enclave code to seamlessly access the Internet;
 (\emph{ii}) a design for the horizontal scaling of enclaves by synchronizing
 secret key material; and
@@ -38,9 +39,9 @@ allows enclaves to seamlessly send and receive data over the Internet while
 maintaining an allow list of destinations, for defense in depth in case of
 enclave compromise.
 %
-Second, the attestation process for Nitro enclaves was not designed to be done
-over the Internet.  To assure clients that they are communicating with an
-authentic enclave, we had to find a mechanism to bind a TLS session to an
+Second, the attestation process for Nitro enclaves was not designed to be
+performed over the Internet.  To assure clients that they are communicating with
+an authentic enclave, we had to find a mechanism to bind a TLS session to an
 attestation document.
 %
 Third, we had to devise a reproducible and yet easy-to-use build pipeline that
@@ -65,24 +66,27 @@ telemetry system.
 \paragraph{Contributions}
 
 This work makes three core contributions.
-%
-First, the design and implementation of a freely available Go framework that
-facilitates the implementation and deployment of enclave applications.  The
-framework consists of a library that an application can use to run as an
-enclave, and tooling that facilitates deterministic builds and seamless
-communication with the secure enclave.
-%
-Second, we make it possible via our framework to turn enclaves into networked
-applications that can easily scale horizontally to respond to increases in load.
-%
-Third, we build two real-world applications on top of our framework.  The design
-of the first application---an IP address pseudonymization system---is a
-contribution in its own right.
+
+\begin{itemize}
+  \item The design and implementation of a freely available Go framework that
+    facilitates the implementation and deployment of enclave applications.  The
+    framework consists of a library that an application can use to run as an
+    enclave, and tooling that facilitates deterministic builds and seamless
+    communication with the secure enclave.
+
+  \item We make it possible via our framework to turn enclaves into networked
+    applications that can easily scale horizontally to respond to increases in
+    load.
+
+  \item We build two real-world applications on top of our framework.  The
+    design of the first application---an IP address pseudonymization system---is
+    a contribution in its own right.
+\end{itemize}
 
 \paragraph{Structure}
 
 Section~\ref{sec:background} provides background on secure enclaves in general
-and AWS Nitro Enclaves in particular.  Section~\ref{sec:design} introduces the
+and AWS Nitro enclaves in particular.  Section~\ref{sec:design} introduces the
 design and implementation of our software framework in addition to the build
 process that guarantees reproducible enclave application builds, followed by
 Section~\ref{sec:applications} which presents two production-quality

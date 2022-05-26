@@ -3,7 +3,7 @@
 
 Arnautov et al. present in their OSDI'16 paper a mechanism that allows Docker
 containers to run in an SGX enclave~\cite{Arnautov2016a}---conceptually similar
-to Nitro Enclaves, which are effectively compiled Docker images.
+to Nitro enclaves, which are effectively compiled Docker images.
 %
 In their 2022 arXiv report, King and Wang~\cite{King2022a} propose HTTPA---an
 SGX-based extension to HTTP that makes a Web server attestable to clients.  Our
@@ -41,7 +41,7 @@ SGX~\cite{Wang2019a}.
 Our framework is built in the memory-safe Go programming language, which
 eliminates an entire class of bugs that could jeopardize the security of
 enclave applications, and unlike Asylo and Open Enclave, our framework only
-supports Nitro Enclaves because the security guarantees of a framework are only
+supports Nitro enclaves because the security guarantees of a framework are only
 as strong as the underlying enclave hardware, and in the case of Intel, ARM,
 and AMD, side channel attacks are a severe concern.
 
@@ -60,7 +60,7 @@ Despite the considerable number of practical attacks, there is opportunity to
 strengthen SGX against side channel attacks.  Oleksenko et al. introduce in
 their ATC'18 paper a system that protects unmodified SGX applications from side
 channel attacks by executing the enclave code on a CPU separate from the
-untrusted code.  Note that this is the default for Nitro Enclaves.
+untrusted code.  Note that this is the default for Nitro enclaves.
 
 For a comprehensive overview of attacks against SGX, refer to Fei et al.'s
 survey~\cite{Fei2021a} and Nilsson et al.'s arXiv report~\cite{Nilsson20a}.
@@ -76,7 +76,7 @@ SEV-protected memory regions.  In a CCS'21 paper, Li et al. showed how an
 attacker-controlled VM can read encrypted page tables, and how an attacker can
 create an oracle for encryption and decryption.
 
-While Nitro Enclaves are still young and have received nowhere near the same
+While Nitro enclaves are still young and have received nowhere near the same
 scrutiny as SGX and friends, we believe that their dedicated hardware resources
 provides considerably higher protection from side channel attacks than enclaves
 that are based on shared CPU resources.
