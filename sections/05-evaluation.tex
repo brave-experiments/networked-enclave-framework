@@ -5,7 +5,7 @@ We evaluate our enclave framework with respect to security
 (\S~\ref{sec:security}), cost (\S~\ref{sec:cost}), and performance.  As for
 performance, we study the rate at which one can generate attestation documents
 (\S~\ref{sec:attestation-performance}), we present our performance test setup
-(\S~\ref{sec:test-setup}), measure end-to-end request latency
+(\S~\ref{sec:test-setup}), and measure end-to-end request latency
 (\S~\ref{sec:end-to-end}).
 
 \subsection{Security Considerations}
@@ -21,7 +21,7 @@ concrete hardware and software implementation remains confidential.  While
 Amazon's decision to allocate physically separate resources to enclaves appears
 promising, the coming years will tell if the implementation can resist the types
 of attacks that have been plagueing SGX.  If we assume that Nitro enclaves are
-secure, the next critical layer is our software framework.
+acceptably secure, the next critical layer is our software framework.
 
 A significant security aspect of our framework is its size; it is well
 understood that complexity is the enemy of security.  Our framework counts less
@@ -58,7 +58,7 @@ How much?}
 We are currently working on deploying the IP address pseudonymization prototype
 that we introduced in Section~\ref{sec:pseudonymization}.  We estimate that our
 enclave is going to have to handle an average of 5,000 requests per minute,
-coming from more than ten million clients.  Our test deployment uses a c5.xlarge
+coming from more than ten million clients.  Our test deployment uses a single c5.xlarge
 EC2 instance in the U.S. East region which costs \$0.17 per hour to operate,
 amounting to approximately \$125 per month.
 
@@ -106,7 +106,7 @@ much latency each component in our data flow adds:
     interface $\rightarrow$ enclave application.
 
   \item[Direct:] This setup does not contain the TCP proxy and the VSOCK
-    interface.  Instead, the client directly talks to the application that is
+    interface.  Instead, the client directly talks to an application instance that is
     running \emph{outside} the enclave, i.e., client $\rightarrow$ application.
 \end{description}
 
@@ -142,7 +142,7 @@ connection to the application---without proxy and VSOCK interface--handles
     \centering
     \begin{tabular}{l r r r}
     \toprule
-    Setup & Reqs/sec & Mean lat. & Max lat. \\
+      Setup & Reqs/sec & Mean lat. (ms) & Max lat. (ms) \\
     \midrule
     Full & 7,500 & 12.7 & 56.0 \\
     No proxy & 14,100 & 6.5 & 52.0 \\

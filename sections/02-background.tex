@@ -31,7 +31,7 @@ following three:
   \item[Integrity] An unauthorized entity must not be able to modify the data
     that the enclave is computing on, or the code it is running.
 
-  \item[Attestability] A separate entity must be able to verify if the enclave
+  \item[Verifiability] A separate entity must be able to verify if the enclave
     is running a given piece of code.
 \end{description}
 
@@ -60,22 +60,22 @@ have its own CPU and memory which is physically isolated from the parent EC2
 image.  The same hypervisor that isolates EC2 instances from each other also
 isolates an EC2 instance from its Nitro enclave.  As far as computing resources
 go, Nitro enclaves are essentially an independent computer, with its own
-operating system, CPU, and memory, but \emph{without} a dedicated networking
-interface.  All networking must go over the parent EC2 instance.  That is by
-design, to constrain all communication with the enclave to a minimal VSOCK
+operating system, CPU, and memory, but \emph{without} a networking
+interface or persistent storage.  By design, network traffic must go through the parent EC2 instance,
+constrainted to a minimal VSOCK
 interface.\footnote{Originally proposed for communication between a hypervisor
 and its virtual machines, AWS repurposed the VSOCK interface to serve as
 communication channel between an enclave and its parent EC2 image.}
 
 % Workflow.
-The development work flow begins with the creation of a Docker image that
+The development work flow begins with the creation of a Linux container image that
 contains the application that will run in the enclave.  Using Amazon's
-nitro-cli command line tool, the developer then compiles the Docker image to an
+nitro-cli command-line tool, the developer then compiles the container image to an
 enclave image file (EIF).  The compilation process results in a number of
 \emph{measurement checksums} that uniquely identify the image itself, its
 kernel, and application.  As we will discuss later in the paper, these
 measurements are key to the remote attestation process.
 %
 Once the EIF is ready, the developer starts the enclave on an EC2 instance
-using the nitro-cli command line tool.  The only way for the EC2 instance to
+using the nitro-cli command-line tool.  The only way for the EC2 instance to
 exchange data with the enclave is via the VSOCK interface.

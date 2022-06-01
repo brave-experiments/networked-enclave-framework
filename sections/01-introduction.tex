@@ -16,11 +16,11 @@ In 2020, several cloud providers began offering ``confidential computing''
 solutions; Google's is based on AMD's Secure Encrypted Virtualization
 (SEV)~\cite{googlecc} while Microsoft's is based on SGX~\cite{azurecc}.  Both
 offerings inherit the attack classes that plague their respective architectures.
-Amazon tread a different path by inventing a new enclave architecture---called
+Amazon took a different path by inventing a new enclave architecture---called
 Nitro enclaves---from the ground up~\cite{nitro-enclaves}.  Nitro enclaves are
 essentially virtual machines that run on dedicated CPUs that are not shared with
 untrustworthy code.  While the architecture appears promising, Nitro enclaves
-remain difficult to use: Documentation is sparse, few applications exist, and
+remain difficult to use: documentation is sparse, few applications exist, and
 enclaves can only interact with the outside world via a constrained VSOCK
 interface.  This paper present the design, implementation, and real-world
 application of a software framework that facilitates the development of
@@ -29,7 +29,7 @@ networked Nitro enclaves.  Key features of our framework include
 (\emph{ii}) a design for the horizontal scaling of enclaves by synchronizing
 secret key material; and
 (\emph{iii}) a reproducible build system and tooling for users to remotely
-attest an enclave's authenticity.
+verify an enclave's authenticity.
 
 % Challenges that we had to overcome.
 During the development of our framework, we had to overcome several challenges.
@@ -40,9 +40,9 @@ maintaining an allow list of destinations, for defense in depth in case of
 enclave compromise.
 %
 Second, the attestation process for Nitro enclaves was not designed to be
-performed over the Internet.  To assure clients that they are communicating with
-an authentic enclave, we had to find a mechanism to bind a TLS session to an
-attestation document.
+performed over the Internet.  We developed a way to bind a TLS session to
+an attestation document to assure clients that they are communicating with
+an authentic enclave.
 %
 Third, we had to devise a reproducible and yet easy-to-use build pipeline that
 allows end users---regardless of their operating system---to compile the enclave
@@ -53,7 +53,7 @@ synchronizing their key material.  We therefore designed a mechanism that allows
 enclaves to synchronize their key material.
 
 % Evaluation.
-Having overcome the above challenges, we implemented an easy-to-use Go framework
+Having overcome the above design challenges, we implemented an easy-to-use Go framework
 that abstracts away the nuances of working with networked enclaves.  The use of
 Go helps keep the trusted computing base small and greatly reduces the risk of
 memory corruption bugs.  We conduct latency measurements to show that our
