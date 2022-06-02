@@ -267,7 +267,7 @@ that the TLS connection is terminated in the enclave.  Note that the hosting EC2
 machine is able to intercept HTTPS connections with its own, CA-signed
 certificate but clients will only trust the EC2 machine if (and only if) it can
 present an attestation document that is valid for the enclave image, which it
-can't because it is unable to spoof the the AWS PKI signature that protects the
+can't because it is unable to spoof the AWS PKI signature that protects the
 attestation document.  The only way for the EC2 machine to obtain such an
 attestation document is to spawn an enclave that runs the exact code that the
 client is expecting---and it already is doing exactly that.  Now that the client
@@ -319,8 +319,8 @@ Recall that enclaves are essentially sealed at runtime, preventing
 anyone (including both Amazon and the service provider) from extracting key material that was generated
 inside the enclave.  While this is a desirable property, it complicates
 horizontal scaling.  If a single enclave is unable to handle the service
-provider's traffic load, one must start new enclaves.
-In some applications, it is unacceptable for each enclave to maintain separate key
+provider's traffic load, one must scale horizontally, by starting new enclaves.
+In some applications, it is unacceptable for each enclave to use distinct key
 material.  Instead, enclaves must synchronize their key material, so they
 appear to the outside world like a single machine.
 
@@ -328,10 +328,10 @@ While it is possible to build key synchronization using tools like the AWS key
 management service (KMS),\footnote{One could encrypt the keys using a KMS
 policy that dictates that only enclaves are allowed to decrypt it, and store
 the encrypted key in a location that all enclaves can access, e.g., an S3
-bucket.} we refrain from using these tools because there is no straightforward
-way for users to audit the correct use of these tools.  We therefore devise a
-new protocol that enables key synchronization without having to rely on any
-extra services.
+bucket.} we refrain from using KMS because there is no straightforward way for
+users to verify that the service provider is using KMS as promised.  We
+therefore devise a new protocol that enables key synchronization without having
+to rely on external services.
 
 We solve this problem in two steps: \emph{discovery} and
 \emph{synchronization}.  First, enclaves must be able to discover each other,
@@ -339,13 +339,13 @@ i.e., learn each other's IP addresses.  Then, enclaves can establish
 connections to each other and initiate key synchronization.  Our protocol
 dictates that when a new enclave bootstraps, it first tries to discover
 already-existing enclaves.  If there are none, the enclave knows that it is the
-``origin'' enclave; it generates new key material and will share it in the
-future.  If there is are other enclaves, the enclave establishes a connection
-to a randomly-chosen enclave and initiates key synchronization.  Crucially, key
-material is only shared after \emph{mutual attestation}, i.e., the original and
-subsequent enclaves attest each other, and only exchange key material if remote
-attestation succeeded.  Key synchronization happens in three steps, as
-illustrated in Figure~\ref{fig:key-synchronization}.
+``origin'' enclave; it generates new key material and is prepared to share it
+with future enclaves.  If however it discovers other enclaves, the new enclave
+establishes a connection to another randomly-chosen enclave and initiates key
+synchronization.  Crucially, key material is only shared after \emph{mutual
+attestation}, i.e., the original and subsequent enclaves attest each other, and
+only exchange key material if remote attestation succeeds.  Key synchronization
+happens in three steps, as illustrated in Figure~\ref{fig:key-synchronization}.
 
 \begin{figure}[t]
   \centering
@@ -379,25 +379,26 @@ illustrated in Figure~\ref{fig:key-synchronization}.
     should be encrypted).  Upon receipt of the new enclave's attestation
     document, the existing enclave verifies the attestation document's signature
     and ensures that the new enclave is running the same code, i.e., the PCR
-    values are identical.  Once the new enclave is convinced that it is dealing
-    with a genuine new enclave, it creates an attestation document by including
-    $\textrm{nonce}_n$ (to prove freshness to the new enclave) and
-    $\textsf{Enc}(K_n, s)$---the key material $s$ is encrypted using the public
-    key that the new enclave provided in the request.  Finally, the new enclave
-    verifies the attestation document, decrypts the key material, and uses it to
-    finish bootstrapping.
+    value that uniquely identifies the enclave image is identical.  Once the new
+    enclave is convinced that it is dealing with a genuine new enclave, it
+    creates an attestation document by including $\textrm{nonce}_n$ (to prove
+    freshness to the new enclave) and $\textsf{Enc}(K_n, s)$---the key material
+    $s$ is encrypted using the public key that the new enclave provided in the
+    request.  Finally, the new enclave verifies the attestation document,
+    decrypts the key material, and uses it to finish bootstrapping.
 
 \end{enumerate}
 
 % Security considerations.
-Needless to say, the security of key synchronization is critical.  The first
+Needless to say, the security of key synchronization is paramount.  The first
 layer of defense is the fact that enclaves communicate with each other over a
-virtual network that is part of a private Kubernetes cluster.  That means that
-it's not possible for arbitrary Internet hosts to contact an enclave, and
-request its key material.  The second layer of defense is the fact that an
-enclave first has to provide a valid attestation document before obtaining key
-material.  As long as an existing enclave knows that an identical and authentic
-copy of itself is asking for key material, it will readily provide it.
+virtual network that is part of the private Kubernetes cluster that the enclaves
+run in.  Arbitrary hosts on the Internet are therefore unable to contact an
+enclave and request its key material.  The second layer of defense is the fact
+that an enclave first has to provide a valid attestation document before the
+origin enclave reveals its key material.  As long as the origin enclave knows
+that an identical and authentic copy of itself is asking for key material, it
+will readily provide it.
 
 \subsubsection{Side-channel Attacks}
 \label{sec:side-channels}

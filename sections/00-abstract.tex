@@ -1,23 +1,22 @@
 \begin{abstract}
 
-Amazon recently introduced cloud-based secure-computing enclaves as part of
-  their Nitro virtual machine architecture.  These
-enclaves do not share hardware with untrustworthy code, promising resistance
-against the side channel attacks which have plagued Intel's SGX for years.  While
-the security properties are attractive, Nitro enclaves are difficult to use and
-not meant to be used as a networked service, which greatly limits their
-potential.
+In 2020, Amazon introduced Nitro enclaves---cloud-based secure enclaves that do
+not share hardware with untrustworthy code, promising resistance against side
+channel attacks, which have plagued Intel's SGX for years.  While their security
+properties are attractive, Nitro enclaves are difficult to use and not meant to
+be used as a networked service, which greatly limits their potential.
 %
-We build a framework that allows for convenient and flexible use of Nitro
-enclaves for networked services.  We abstract away complex aspects like remote attestation and
-end-to-end encryption, and implement a library that simplies use.
+We built a framework that allows for convenient and flexible use of Nitro
+enclaves.  It abstracts away complex aspects like remote attestation and
+end-to-end encryption, and provides a library to ease implementation
+of service applications on secure enclaves.
 %
 To demonstrate the practicality of our framework, we design and implement two
-production-grade systems on top of our framework: for IP address
-pseudonymization and private telemetry.
+production-grade systems on top of our framework: for user-verifiable IP address
+pseudonymization and for private telemetry.
 %
-We find that our framework enables quick prototyping, adapts to
-different use cases, and inherits strong security and performance properties
-from the underlying Nitro enclaves.
+We find that our framework enables quick prototyping, is flexible enough to
+accommodate different use cases, and inherits strong
+security and performance properties from the underlying Nitro enclaves.
 
 \end{abstract}
