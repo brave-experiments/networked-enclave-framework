@@ -121,10 +121,8 @@ how it seeds its empty entropy pool (\S~\ref{sec:entropy});
 how it obtains a CA-signed certificate (\S~\ref{sec:cert});
 how we facilitate remote attestation (\S~\ref{sec:attestation});
 how enclaves can share their key material to allow for horizontal scaling (\S~\ref{sec:sync});
-and how to thwart side-channel attacks (\S~\ref{sec:side-channels}).
-
-\phw{Add subsection on an endpoint that allows for the ingestion of
-well-defined, private data (e.g., IP address filter lists).}
+how to thwart side-channel attacks (\S~\ref{sec:side-channels}), and
+how to ingest secrets (\S~\ref{sec:secrets}.
 
 \subsubsection{Enabling Networking}
 \label{sec:networking}
@@ -419,6 +417,36 @@ under the attacker's control) is prohibited by hardware to read the enclave
 application's memory or registers in clear text, which forces the attacker to
 operate blindly.} but Lee et al. showed that it's possible, by adapting a
 return-oriented programming attack against SGX~\cite{Lee2017a}.
+
+\subsubsection{Ingesting secrets}
+\label{sec:secrets}
+
+A key design requirement of our framework is that users can audit and verify the
+code that is running inside an enclave, which means that the service provider is
+unable to hide any software configuration from the user.  Service providers can
+work around that shortcoming by implementing HTTP handlers that take as input
+arbitrary data, and use it to update the enclave's state.  Consider a system
+that takes as input client IP addresses, anonymizes them, and forwards the
+anonymized addresses to a back end (cf. \S~\ref{sec:pseudonymization}).  The
+service provider now wants to compare submitted IP addresses to a confidental
+deny list.  However, if the deny list is hard-coded in the freely available
+enclave application, it is readily visible to anyone.
+
+To work around this shortcoming, the service provider can add a new HTTP handler
+that takes as input the confidential data it seeks to protect from the users'
+eyes.  Once the enclave is running, the service provider can load the
+confidential data at runtime, by calling the end point.  To prevent users from
+submitting bogus data, the endpoint could hard-code the service provider's
+public key and only accept data that carries a valid signature of the service
+provider's private key.
+
+The above technique for ingesting secrets into an enclave's runtime is
+flexible---so flexible, in fact, that the service provider could abuse it to
+ingest code at runtime, which would nullify the verifiability the enclave's
+verifiability requirement.  Vigilant users would never trust an enclave whose
+code can change at runtime.  We therefore argue that an HTTP handler for the
+purpose of injesting secrets must be constrained to a point that only data of a
+well-defined type can be injested.
 
 \subsubsection{An Example}
 
