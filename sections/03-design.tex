@@ -24,7 +24,7 @@ Our setting has three participants that have the following trust assumptions:
     \item The \emph{enclave provider} makes available enclaves to the service
       provider.  Both the client and the service provider trust that the
       enclave provider's enclaves have the security attributes of integrity,
-      confidentiality, and attestability.  The client trusts that the enclave
+      confidentiality, and verifiability.  The client trusts that the enclave
       provider and service provider don't collude.
 \end{enumerate}
 
@@ -39,7 +39,7 @@ The subsequent sections are going to elaborate on this high-level picture.
       running it in an enclave.  Once the implementation is finished, the
       service provider publishes the source code for the clients to audit, and
       runs the code in an enclave.  After booting, the enclave obtains a
-      CA-signed certificate.
+      CA-signed TLS certificate.
 
     \item Users audit the source code.  Once a user has convinced herself that
       the code is free of bugs, she compiles the code using the framework's
@@ -98,8 +98,8 @@ need a \emph{deterministic mapping} between the code and its corresponding
 image ID because the service provider and clients must agree on the image ID
 that's running in the enclave.
 
-Docker does not offer a deterministic mapping because, among other things,
-Docker uses timestamps in its build process, causing subsequent builds of
+The popular Docker tool does not offer a deterministic mapping because, among other things,
+Docker records timestamps in its build process, causing subsequent builds of
 identical code to result in different image IDs.\footnote{In essence, an image
 is simply a file system.  If an image is reproducible, separate build processes
 arrive at the exact same file system.}  To obtain reproducible builds, we use
@@ -117,7 +117,7 @@ client is now ready to interact with the enclave.
 Having established how one can build applications reproducibly, we now turn to
 the specific features of our framework.  The following sections discuss how the
 framework communicates with the outside world (\S~\ref{sec:networking});
-how it seeds its empty entropy pool, (\S~\ref{sec:entropy});
+how it seeds its empty entropy pool (\S~\ref{sec:entropy});
 how it obtains a CA-signed certificate (\S~\ref{sec:cert});
 how we facilitate remote attestation (\S~\ref{sec:attestation});
 how enclaves can share their key material to allow for horizontal scaling (\S~\ref{sec:sync});
@@ -170,7 +170,7 @@ consists of two endpoints:
 \caption{Upon bootstrapping, the application first asks the hypervisor for
   randomness to seed its entropy pool (\ding{202}), followed by initiating an
   ACME session to obtain a Let's Encrypt-signed certificate (\ding{203}), after
-  which Let's Encrypt probes the enclave an issues the certificate
+  which Let's Encrypt probes the enclave and issues the certificate
   (\ding{204}).  Afterwards, clients can establish HTTPS connections with the
   enclave (\ding{205}) and the enclave can forward data to its back end
   (\ding{206}).  All of the application's ingress and egress  traffic is routed
@@ -194,10 +194,10 @@ never encounter function calls that block because of a lack of randomness.
 
 Having established how the enclave can send and receive network packets, we now
 turn our attention to secure channels.  More specifically: how can a host on
-the Internet be sure that it's talking to the enclave application code it
-audited, without taking advantage of an existing trust relationship?
+the Internet be sure that it's talking to audited enclave application code,
+without taking advantage of an existing trust relationship?
 
-We implement a secure channel based on HTTPS.  Once the enclave initialized its
+We implement a secure channel based on HTTPS.  Once the enclave has initialized its
 entropy pool, it obtains an HTTPS certificate that allows clients to establish
 end-to-end encrypted session with the enclave.  Crucially, the HTTPS
 certificate \emph{lives and dies} inside the enclave and its private key cannot
@@ -227,7 +227,7 @@ By default, Nitro enclaves only allow for local attestation.  We now discuss how
 we allow clients to remotely attest an enclave.  After the client establishes an
 HTTPS connection with the enclave, it needs to know that (\emph{i}) the TLS
 connection it just established is terminated inside the enclave (instead of by
-the EC2 machine) and (\emph{ii}) the enclave is running the code that the user
+the hosting EC2 machine) and (\emph{ii}) the enclave is running the code that the user
 audited in the previous step.  To that end, the client requests the enclave's
 \emph{attestation document}---a hypervisor-signed document that attests to the
 container image ID that the enclave is running.  To request an attestation
@@ -244,7 +244,7 @@ GET /attestation?nonce=8083...23b7 HTTP/1.1
 \phw{Elaborate on how the attestation document is generated, and what it
 contains.}
 
-The enclave receives the request and the provided nonce, asks the hypervisor to
+The enclave receives the request and the provided nonce through the TCP proxy, asks the hypervisor to
 include the nonce \emph{and} the fingerprint of the enclave's X.509 certificate
 in the attestation document, and sends the resulting attestation document to
 the client.  By asking the hypervisor to include the certificate fingerprint in
@@ -254,8 +254,8 @@ client then verifies the following in order:
 \begin{enumerate}
     \item The attestation document is signed by the AWS PKI whose public key is
       known to all parties.
-    \item The challenge is part of the attestation document.
-    \item The fingerprint of the enclave's X.509 certificate is part of the
+    \item The challenge nonce is part of the attestation document.
+    \item The fingerprint of the enclave's X.509 certificate from the TLS session is part of the
       attestation document.
     \item The enclave's image ID is identical to the image ID that the client
       compiled locally.
@@ -279,12 +279,12 @@ succession---we present performance measurements in
 Section~\ref{sec:attestation-performance}---they do require an extra round trip
 between the client and the enclave before the client is willing to reveal
 sensitive information: the client first provides a nonce to the enclave, the
-enclave responds with an attestation document, an only after the client verified
+enclave responds with an attestation document, and only after the client verified
 the document is it willing to reveal its sensitive information.  To eliminate
 that round trip, clients should use TLS session resumption once they have
 verified the enclave's attestation document.  The service provider is unable to
 tamper with the enclave's key material, so it's safe to re-use a
-once-established TLS session to forego an unnecessary round trip.
+once-established TLS session and forgo the unnecessary round trip.
 
 \paragraph{Client-side Verification}
 
@@ -292,7 +292,7 @@ Even for developers, remote attestation is a complex process that is difficult
 to understand and work with.  To make matters more complex, in our setting end
 users are expected to conduct remote attestation themselves.  We therefore made
 a careful effort to abstract away technical details.  A user wishing to remotely
-attest an enclave essentially asks herself ``Does the enclave that's exposed at
+verify an enclave essentially asks herself ``Does the enclave that's exposed at
 a given URL run the source code that I just audited?''  We built a tool set that
 reduces the process to the running of a Makefile,\footnote{The source code is
 publicly available but we redacted the URL to remain anonymous.} e.g.:
@@ -315,16 +315,16 @@ accordingly.
 \subsubsection{Sharing Key Material}
 \label{sec:sync}
 
-Recall that enclaves are essentially sealed black boxes at runtime, preventing
-anyone (including Amazon) from extracting key material that was generated
+Recall that enclaves are essentially sealed at runtime, preventing
+anyone (including both Amazon and the service provider) from extracting key material that was generated
 inside the enclave.  While this is a desirable property, it complicates
 horizontal scaling.  If a single enclave is unable to handle the service
 provider's traffic load, one must scale horizontally, by starting new enclaves.
-In some use cases, it is unacceptable for each enclave to maintain its own key
-material.  Instead, enclaves must then synchronize their key material, so they
+In some applications, it is unacceptable for each enclave to use distinct key
+material.  Instead, enclaves must synchronize their key material, so they
 appear to the outside world like a single machine.
 
-While it is possible to build key synchronization using AWS tools like the key
+While it is possible to build key synchronization using tools like the AWS key
 management service (KMS),\footnote{One could encrypt the keys using a KMS
 policy that dictates that only enclaves are allowed to decrypt it, and store
 the encrypted key in a location that all enclaves can access, e.g., an S3
@@ -340,11 +340,11 @@ connections to each other and initiate key synchronization.  Our protocol
 dictates that when a new enclave bootstraps, it first tries to discover
 already-existing enclaves.  If there are none, the enclave knows that it is the
 ``origin'' enclave; it generates new key material and is prepared to share it
-with future enclaves.  If however there are other enclaves, the origin enclave
-establishes a connection to a randomly-chosen enclave and initiate key
+with future enclaves.  If however it discovers other enclaves, the new enclave
+establishes a connection to another randomly-chosen enclave and initiates key
 synchronization.  Crucially, key material is only shared after \emph{mutual
 attestation}, i.e., the original and subsequent enclaves attest each other, and
-only exchange key material if remote attestation succeeded.  Key synchronization
+only exchange key material if remote attestation succeeds.  Key synchronization
 happens in three steps, as illustrated in Figure~\ref{fig:key-synchronization}.
 
 \begin{figure}[t]
@@ -400,7 +400,7 @@ origin enclave reveals its key material.  As long as the origin enclave knows
 that an identical and authentic copy of itself is asking for key material, it
 will readily provide it.
 
-\subsubsection{Thwarting Side-channel Attacks}
+\subsubsection{Side-channel Attacks}
 \label{sec:side-channels}
 
 The enclave's parent EC2 image cannot see \emph{what} clients submit but it can

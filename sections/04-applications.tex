@@ -16,7 +16,7 @@ lightweight, Go-based wrapper (in less than 200 lines of code, excluding our
 framework's code) that interacts with the Rust code via an FFI.\footnote{The
 code is publicly available but we don't link to it yet to preserve our
 anonymity.} Importantly, the compilation process is still reproducible as long
-as the Rust code's dependencies are pinned via a Cargo.lock file.
+as the Rust code's dependencies are pinned via Cargo.lock and rust-toolchain.toml files.
 
 \subsection{IP Address Pseudonymizer}
 \label{sec:pseudonymization}
@@ -55,7 +55,7 @@ f(k, \textrm{``\underline{10.0.0.}123''}) = \textrm{``\underline{242.32.192.}154
 Figure~\ref{fig:address-anonymizer} illustrates the system design.  Clients
 periodically communicate with a service behind a reverse TLS proxy whose
 job---among other things---is to hide client IP addresses from the service.  The
-proxy is configured to mirror incoming client request to the enclave, but with
+proxy is configured to mirror incoming client requests to the enclave, but with
 client IP addresses intact, in the form of a custom HTTP header like
 \texttt{X-Client-Addr: 1.2.3.4}.  The service is interactive, and responds to
 the client, but the enclave is passive, and simply consumes the requests.
@@ -147,12 +147,12 @@ patterns.  Their system---called PROCHLO---consists of three components:
 (\emph{i}) software running on the client, which can (but doesn't have to) add
 local differential privacy to client measurements.  These measurements are then
 sent to (\emph{ii}) a shuffler, which enforces a configurable $k$-anonymity
-threshold on incoming measurements.  The shuffler then sends all remaining
-measurements to (\emph{iii}) an analytics system that the service provider uses
-to explore users' anonymized data.  The PROCHLO paper envisions the shuffler to
-run in a secure enclave; otherwise users would have no reason to trust that the
+threshold on incoming measurements.  The shuffler then sends measurements meeting that threshold
+to (\emph{iii}) an analytics system that the service provider uses
+to explore users' anonymized data.  The PROCHLO paper envisions the shuffler
+running in a secure enclave; otherwise users would have no reason to trust that the
 shuffler is in fact enforcing $k$-anonymity thresholds.  To that end, the
-authors designed the shuffler to run inside an SGX enclave, which was
+authors designed the shuffler to run inside an Intel SGX enclave, which was
 challenging considering the memory constraints that SGX imposes.
 
 \phw{Add more details about how the shuffling is done.}
