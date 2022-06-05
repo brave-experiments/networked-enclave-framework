@@ -1,0 +1,19 @@
+\begin{tikzpicture}[node distance=20pt]
+
+  \node [draw,
+         align=center] (code) {Application\\source code};
+
+  \node [draw,
+         align=center,
+         right=50pt of code] (docker) {Docker\\image};
+
+  \node [draw,
+         align=center,
+         right=50pt of docker] (eif) {Enclave\\image};
+
+  \draw[-latex] (code.east) -- (docker.west)
+                node [midway, fill=white] {docker};
+  \draw[-latex] (docker.east) -- (eif.west)
+                node [midway, fill=white] {nitro-cli};
+
+\end{tikzpicture}
