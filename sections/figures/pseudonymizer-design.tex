@@ -25,11 +25,19 @@
 \draw [-latex] (client.east) -- (proxy.west);
 
 \draw [-latex] (proxy.east) -- (service.west)
-      node [midway, right] {{\footnotesize Request (without address)}};
+      node [midway, right] {{\footnotesize Request (without IP address)}};
 
 \draw [-latex] (proxy.east) -- (ec2.west)
-      node [midway, right] {{\footnotesize Request (with address)}};
+      node [midway, right] {{\footnotesize Request (with IP address)}};
 
 \draw [-latex] (ec2.east) -- (backend.west);
+
+\draw [-latex] ([xshift=10pt]enclave.south west)
+               to[out=-135, in=-45, distance=20pt]
+               ([xshift=-10pt]enclave.south east);
+
+% This node should be attacked to the above line but the use of 'to' seems to
+% break node positioning, which is why we're using a free floating node.
+\node at ([yshift=-17pt]enclave.south) {{\footnotesize Pseudonymize}};
 
 \end{tikzpicture}
