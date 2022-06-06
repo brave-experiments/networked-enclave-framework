@@ -52,9 +52,6 @@ enclaves are however only available for select types of EC2 instances because
 they require their own CPU and a minimum amount of memory, and those instance
 types are pricier than the lowest tier that AWS offers.
 
-\phw{Add more details here.  Are we going to have to pay for egress traffic?
-How much?}
-
 We are currently working on deploying the IP address pseudonymization prototype
 that we introduced in Section~\ref{sec:pseudonymization}.  We estimate that our
 enclave is going to have to handle an average of 5,000 requests per minute,
@@ -117,7 +114,7 @@ important to use a minimalistic application because we're only interested in
 the latency that is caused by the components \emph{before} a request reaches
 the enclave application.
 
-\subsection{End-to-end Latency}
+\subsection{End-to-end Latency and Throughput}
 \label{sec:end-to-end}
 
 To simulate clients, we use the HTTP load test tool Baton~\cite{baton}.  We run
@@ -163,8 +160,28 @@ measurements for our three test setups.
     \caption{The empirical CDF of the latency distributions of our three test setups.}
 \end{figure}
 
-\phw{The paper would benefit from a section on the framework's usability. How do
-we quantify this?}
+Next, we measure the throughput that we can achieve over the VSOCK interface.
+To that end, we use a VSOCK-enabled fork of the iperf3 performance measurement
+tool~\cite{iperf-vsock}.  iperf3 measures the throughput of a networking link
+using a client/server model.  In our experiment, we start an iperf3 server
+instance inside the enclave and the corresponding client instance on the parent
+EC2 instance.\footnote{The command that we ran on the server was
+\texttt{iperf-vsock \--vsock -s} and on the client \texttt{iperf-vsock --vsock
+-c 4}.} The client then talks to the server via the VSOCK interface and
+determines the maximum possible throughput.  In this setup, iperf3 measured a
+throughput of 4.09 GBit/s.  For comparison, when running both the iperf3 client
+\emph{and} server on the EC2 instance---which effectively measures the
+throughput of the EC2 instance's loopback interface---we achieve 55.5 GBit/s of
+throughput.
+
+To develop intuition on the perceived network performance of Nitro enclaves, we
+built an enclave application that acts as a SOCKS proxy.  We then configured a
+browser to use this enclave-enabled SOCKS proxy and browsed HD videos on
+YouTube.  We found that the experience was seamless: videos loaded quickly,
+played smoothly, and there was no perceivable latency impact when browsing the
+Web.  We believe that the high throughput and low latency, coupled with this
+anecdotal user experience report suggests that our framework is suitable for
+demanding and latency-sensitive networking applications.
 
 % \subsection{Operational Experience}
 % \label{sec:operations}
