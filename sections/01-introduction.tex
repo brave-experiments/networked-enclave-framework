@@ -16,10 +16,11 @@ In 2020, several cloud providers began offering ``confidential computing''
 solutions; Google's is based on AMD's Secure Encrypted Virtualization
 (SEV)~\cite{googlecc} while Microsoft's is based on SGX~\cite{azurecc}.  Both
 offerings inherit the attack classes that plague their respective architectures.
-Amazon took a different path by inventing a new enclave architecture---called
-Nitro enclaves---from the ground up~\cite{nitro-enclaves}.  Nitro enclaves are
-essentially virtual machines that run on dedicated CPUs that are not shared with
-untrustworthy code.  While the architecture appears promising, Nitro enclaves
+Amazon took a different path by offering a new enclave architecture
+based on their Nitro virtual machine isolation technology~\cite{nitro-enclaves}.
+Nitro enclaves are separate virtual machines with hardware-enforced CPU,
+memory, and device isolation, which imposes limits on access by untrustworthy code.
+While the architecture appears promising, Nitro enclaves
 remain difficult to use: documentation is sparse, few applications exist, and
 enclaves can only interact with the parent EC2 instance via a constrained,
 socket-like interface.  This paper presents the design, implementation, and
