@@ -13,59 +13,61 @@ well-understood and practical ways to protect data at rest (e.g., full disk
 encryption) and in transit (e.g., TLS) but only limited solutions for data that
 is in use.  Cryptography provides solutions in the form of fully homomorphic
 encryption (FHE) and secure multiparty computation (MPC) but for many
-applications, those building blocks remain too slow or cumbersome.  Trusted
+applications, those building blocks remain too slow and cumbersome.  Trusted
 execution environments---in particular in the form of ``secure
-enclaves''---provide an alternative that is rooted in hardware and code.
-Unlike FHE and MPC, enclaves perform at native (or near-native) execution speed
-because they are general-purpose computing environments that are not limited to
-the computation of carefully designed functions.  Conceptually, enclaves are
+enclaves''---provide an alternative that is rooted in hardware and code.  Unlike
+FHE and MPC, enclaves perform at native (or near-native) execution speed because
+they are general-purpose computing environments that are not limited to the
+computation of carefully designed functions.  Conceptually, enclaves are
 isolated execution environments that are shielded off from a computer's main
-execution environment---typically by relying on hardware.  Enclaves offer
-various security properties but in the context of this work, we rely on the
-following three:
+execution environment, which runs the untrustworthy (from the enclave's point of
+view) operating system.  Enclaves offer various security properties but in the
+context of this work, we rely on the following three:
 
 \begin{description}
-  \item[Confidentiality] An unauthorized entity must not be able to see the
+  \item[Confidentiality] An unauthorized entity must not be able to observe the
     data that an enclave is computing.
 
   \item[Integrity] An unauthorized entity must not be able to modify the data
     that the enclave is computing on, or the code it is running.
 
   \item[Verifiability] A separate entity must be able to verify if the enclave
-    is running a given piece of code.
+    is running the code that its operator claims it is running.
 \end{description}
 
-Modern CPUs of major hardware vendors implement secure enclaves; Intel has SGX,
+Modern CPUs of major hardware vendors implement secure enclaves: Intel has SGX,
 ARM has TrustZone, and AMD has SEV.  A frequent critique of these industry
 efforts focuses on their proprietary nature. The community has a conceptual
 understanding of the mechanisms behind enclaves but their exact hardware
-implementation is not disclosed, which is in violation of Kerckhoffs's
-principle and served as motivation towards an open source
-enclave~\cite{Lee20a}.
-
-In practice, enclaves promise to be useful in situations where a system must
-process sensitive data while simultaneously be shielded off from the complexity
-(and subsequent insecurity) of general-purpose computers. Financial and
-health-related data are common examples of situations where care should be
-taken.
+implementation is not disclosed, which served as motivation towards an open
+source enclave~\cite{Lee20a}.  In practice, enclaves promise to be useful in
+situations where a system must process sensitive data while simultaneously be
+shielded off from the complexity (and subsequent insecurity) of general-purpose
+computers.
 
 \subsection{AWS Nitro Enclaves}
 \label{sec:nitro}
 
 In this work, we build on top of AWS's Nitro enclaves.  Nitro enclaves are
 isolated and constrained virtual machines that run alongside an EC2 instance
-that spawns and can communicate with the enclave.  Crucially, an enclave does
-not share hardware resources with its parent EC2 image; it is guaranteed to
-have its own CPU and memory which is physically isolated from the parent EC2
-image.  The same hypervisor that isolates EC2 instances from each other also
-isolates an EC2 instance from its Nitro enclave.  As far as computing resources
-go, Nitro enclaves are essentially an independent computer, with its own
-operating system, CPU, and memory, but \emph{without} a networking
-interface or persistent storage.  By design, network traffic must go through the parent EC2 instance,
-constrainted to a minimal VSOCK
-interface.\footnote{Originally proposed for communication between a hypervisor
-and its virtual machines, AWS repurposed the VSOCK interface to serve as
-communication channel between an enclave and its parent EC2 image.}
+that is responsible for starting the enclave, and communicating with it.
+Crucially, an enclave does not share hardware resources with its parent EC2
+image; it is guaranteed to have its own CPU and memory which is physically
+isolated from the parent EC2 image.  The same hypervisor that isolates EC2
+instances from each other also isolates an EC2 instance from its Nitro enclave.
+As far as computing resources go, Nitro enclaves are essentially an independent
+computer, with its own operating system, CPU, and memory, but \emph{without} a
+networking interface or persistent storage.  By design, the enclave's network
+traffic must go through the parent EC2 instance, constrained to a minimal VSOCK
+interface~\cite{vsock}. Originally proposed for communication between a
+hypervisor and its virtual machines, AWS repurposed the VSOCK interface to serve
+as communication channel between an enclave and its parent EC2 image.  From a
+developer's point of view, the VSOCK interface is a point-to-point interface
+connecting the enclave to its parent EC2 image.  On the address layer, 32-bit
+context IDs take the role of IP addresses in VSOCK interfaces.  For example, the
+enclave may have context ID 4 while its parent EC2 instance may have context ID
+3.  On the transport layer, one can use the same protocols that one can use over
+the IP-based address family; namely TCP, UDP, etc.
 
 \begin{figure}[t]
   \centering
