@@ -16,7 +16,7 @@ lightweight, Go-based wrapper (in less than 200 lines of code, excluding our
 framework's code) that interacts with the Rust code via an FFI.\footnote{The
 code is publicly available but we don't link to it yet to preserve our
 anonymity.} Importantly, the compilation process is still reproducible as long
-as the Rust code's dependencies are pinned via Cargo.lock and rust-toolchain.toml files.
+as the Rust code's dependencies are pinned via Rust's Cargo tool chain.
 
 \subsection{IP Address Pseudonymizer}
 \label{sec:pseudonymization}
@@ -30,9 +30,6 @@ provider's fight against a subset of its users that commit fraud.  This
 constitutes a conundrum: Should the service provider collect all its users' IP
 addresses to strengthen its anti-fraud efforts?  Or continue to discard the
 addresses, and tolerate the fraud?
-
-\phw{Find citations to highlight the importance of oblivious IP address
-processing.}
 
 This section presents an application that strikes a balance between these two
 extremes; an IP address pseudonymization system that can verifiably---thanks to
@@ -81,24 +78,24 @@ provider's control.
 One problem however remains: how do clients know that the TLS proxy is in fact
 configured to discard client IP addresses before forwarding requests to the
 service?  Unfortunately, cloud providers don't offer satisfying solutions for
-this problem but some cloud providers allow for the creation of roles.  The
-service provider could create a read-only role in the configuration interface
-for the TLS proxy and publish the credentials for this role.  Doubtful users can
-then log in to this role and verify that the TLS proxy is configured to discard
-IP addresses when forwarding requests to the service.  As long as the TLS proxy
-operator is a neutral third party with no incentive to lie, both the client and
-service provider can trust it.
-
-\phw{Rephrase the above, and provide alternatives.  Reviewers are almost
-certainly going to tear this apart.}
+this problem but some cloud providers allow for the creation of roles whose
+permissions are configurable.  The service provider could create a read-only
+role in the configuration interface for the TLS proxy and publish the
+credentials for this role.  Doubtful users can then log in to this role and
+verify that the TLS proxy is configured to discard IP addresses when forwarding
+requests to the service.  As long as the TLS proxy operator is a neutral third
+party with no incentive to lie, both the client and service provider can trust
+it.  We acknowledge that this is not an elegant solution but a mere hack, to
+work around the shortcoming of Nitro enclaves not having a networking interface.
 
 \paragraph{Side channels}
 The untrustworthy parent EC2 instance never sees client IP address in plaintext
 but it can exploit timing and volume side channels to infer information about
 the encrypted requests that the TLS proxy forwards to the enclave.  We close
-this side channel by queuing pseudonymized IP addresses until two conditions are
-true: (\emph{i}) we have at least $n$ pseudonymized addresses, and (\emph{ii})
-at least $t$ minutes have passed.
+this side channel by adding code to the enclave application which queues
+pseudonymized IP addresses until two conditions are true: (\emph{i}) we have at
+least $n$ pseudonymized addresses, and (\emph{ii}) at least $t$ minutes have
+passed.
 
 \paragraph{Key rotation}
 A single pseudonymous IP address without context cannot be reversed and reveals
@@ -135,8 +132,12 @@ security-critical bugs and is also more difficult to audit for users.
 
 \paragraph{Alternative pseudonymization}
 In addition to Crypto-PAn, we implemented a second pseudonymization method that
-is based on HMAC-SHA-256.  Like Crypto-PAn, the HMAC is keyed by a secret that
-the enclave generates when first bootstrapping.
+is based on HMAC-SHA-256.  Like Crypto-PAn, the HMAC is keyed by a 160-bit
+secret that the enclave generates when first bootstrapping.  Unlike Crypto-PAn,
+however, the HMAC-based method does not preserve the prefixes of IP addresses:
+two IP addresses that differ in only a single bit will result in entirely
+different hashes.  On the privacy/utility spectrum, the HMAC-based method
+therefore leans more toward privacy.
 
 \subsection{$k$-anonymity Enforcer}
 \label{sec:shuffler}
@@ -153,9 +154,9 @@ to explore users' anonymized data.  The PROCHLO paper envisions the shuffler
 running in a secure enclave; otherwise users would have no reason to trust that the
 shuffler is in fact enforcing $k$-anonymity thresholds.  To that end, the
 authors designed the shuffler to run inside an Intel SGX enclave, which was
-challenging considering the memory constraints that SGX imposes.
-
-\phw{Add more details about how the shuffling is done.}
+challenging considering the memory constraints that SGX imposes.  For more
+details about the shuffler, refer to the original PROCHLO
+paper~\cite[\S~3.3]{Bittau2017a}.
 
 As part of an unrelated research project, we were experimenting with private
 telemetry, and we therefore used our framework to re-implemented the shuffler in
@@ -189,3 +190,11 @@ implementation has two key advantages: (\emph{i}) Nitro's underlying hardware
 isolation makes our implementation more robust to hardware side channel attacks
 and (\emph{ii}) Nitro doesn't suffer from the same resource constraints as SGX,
 which renders our implementation easier to use and less error-prone.
+
+\paragraph{Side channels}
+The untrustworthy parent EC2 instance can take advantage of the same side
+channel as with the IP address pseudonymizer.  In particular, the EC2 instance
+can observe when and how many requests clients make.  Like with the IP address
+pseudonymizer, the PROCHLO paper closes this side channel by aggregating
+requests, preventing the EC2 instance from linking incoming to outgoing
+requests.

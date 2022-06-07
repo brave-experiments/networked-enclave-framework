@@ -1,75 +1,77 @@
 \begin{tikzpicture}[node distance=20pt]
-	\node [draw,
-           label=EC2 parent,
-           minimum height=100pt,
-           align=center,
-           minimum width=80pt] (ec2) {};
-	\node [draw,
-           label=Enclave,
-           right=0pt of ec2,
-           fill=black!10,
-           minimum height=100pt,
-           minimum width=80pt] (enclave) {};
-           
-    \node [draw,
-           below=0pt of enclave.south west,
-           minimum width=160pt] (hypervisor) {Hypervisor};
-	   
-	\node [draw,
-           align=center,
-           minimum height=25pt,
-           yshift=-5pt,
-           above=of ec2.south] (viproxy) {TCP proxy};
+  \node [draw,
+         label=EC2 parent,
+         minimum height=100pt,
+         align=center,
+         minimum width=80pt] (ec2) {};
+  \node [draw,
+         label=Enclave,
+         right=0pt of ec2,
+         fill=black!10,
+         minimum height=100pt,
+         minimum width=80pt] (enclave) {};
+  \node [draw,
+         below=0pt of enclave.south west,
+         minimum width=160pt] (hypervisor) {Hypervisor};
 
-	\node [draw,
-           align=center,
-           yshift=5pt,
-           below=of ec2.north] (socks) {SOCKS\\proxy};
-  
-	\node[draw,
-          align=center,
-          fill=white,
-          minimum height=25pt,
-          yshift=-5pt,
-          above=of enclave.south] (app) {Application};
-	      
-	\node [draw,
-           minimum height=16pt,
-           yshift=35pt,
-           left=of ec2.west] (backend) {Back end};
+  \node [draw,
+         align=center,
+         minimum height=25pt,
+         yshift=-5pt,
+         above=of ec2.south] (viproxy) {TCP proxy};
 
-    \node [draw,
-           below=of backend] (letsencrypt) {Let's Encrypt};
+  \node [draw,
+         align=center,
+         yshift=5pt,
+         below=of ec2.north] (socks) {SOCKS\\proxy};
 
-    \node [draw,
-           below=of letsencrypt,
-           minimum height=16pt] (client) {Client};
+  \node[draw,
+        align=center,
+        fill=white,
+        minimum height=25pt,
+        yshift=-5pt,
+        above=of enclave.south] (app) {Application};
 
-    \node [right, align=center, rotate=90] at (enclave.west) {\footnotesize \color{gray} VSOCK\\\footnotesize \color{gray} interface};
+  \node [draw,
+         minimum height=16pt,
+         yshift=35pt,
+         left=of ec2.west] (backend) {Back end};
 
-    % Application asks the hypervisor for randomness.
-    \draw[-latex] (app.south) -- ([xshift=40pt]hypervisor.north)
-        node [midway, fill=white, circle, inner sep=0pt] {\ding{202}};
+  \node [draw,
+         below=of backend] (letsencrypt) {Let's Encrypt};
 
-    % Application talking to Let's Encrypt.
-    \draw[-latex, densely dotted] ([yshift=10pt]app.west) -- ([yshift=10pt]viproxy.east)
+  \node [draw,
+         below=of letsencrypt,
+         minimum height=16pt] (client) {Client};
+
+  \node [right,
+         align=center,
+         rotate=90] at (enclave.west)
+        {\footnotesize \color{gray} VSOCK\\\footnotesize \color{gray} interface};
+
+  % Application asks the hypervisor for randomness.
+  \draw[-latex] (app.south) -- ([xshift=40pt]hypervisor.north)
+      node [midway, fill=white, circle, inner sep=0pt] {\ding{202}};
+
+  % Application talking to Let's Encrypt.
+  \draw[-latex, densely dotted] ([yshift=10pt]app.west) -- ([yshift=10pt]viproxy.east)
         node [midway, fill=white, circle, inner sep=0pt] {\ding{203}};
-    \draw[-latex, densely dotted] ([xshift=-3pt]viproxy.north) -- ([xshift=-3pt]socks.south);
-    \draw[-latex, densely dotted] ([yshift=-3pt]socks.west) -- ([yshift=3pt]letsencrypt.east);
+  \draw[-latex, densely dotted] ([xshift=-3pt]viproxy.north) -- ([xshift=-3pt]socks.south);
+  \draw[-latex, densely dotted] ([yshift=-3pt]socks.west) -- ([yshift=3pt]letsencrypt.east);
 
-    % Let's encrypt probing Application.
-    \draw[-latex, densely dashdotted] ([yshift=-3pt]letsencrypt.east) -- ([yshift=3pt]viproxy.west)
+  % Let's encrypt probing Application.
+  \draw[-latex, densely dashdotted] ([yshift=-3pt]letsencrypt.east) -- ([yshift=3pt]viproxy.west)
         node [midway, fill=white, circle, inner sep=0pt] {\ding{204}};
-    \draw[-latex, densely dashdotted] ([yshift=3pt]viproxy.east) -- ([yshift=3pt]app.west);
+  \draw[-latex, densely dashdotted] ([yshift=3pt]viproxy.east) -- ([yshift=3pt]app.west);
 
-    % Clients talking to the application.
-    \draw[-latex] (client.east) -- ([yshift=-3pt]viproxy.west)
+  % Clients talking to the application.
+  \draw[-latex] (client.east) -- ([yshift=-3pt]viproxy.west)
         node [midway, fill=white, circle, inner sep=0pt] {\ding{205}};
-    \draw[-latex] ([yshift=-3pt]viproxy.east) -- ([yshift=-3pt]app.west);
-    
-    % Application talking to backend.
-	\draw[-latex, densely dashed] ([yshift=-10pt]app.west) -- ([yshift=-10pt]viproxy.east)
-	    node [midway, fill=white, circle, inner sep=0pt] {\ding{206}};
-	\draw[-latex, densely dashed] ([xshift=3pt]viproxy.north) -- ([xshift=3pt]socks.south);
-	\draw[-latex, densely dashed] ([yshift=3pt]socks.west) -- (backend.east);
+  \draw[-latex] ([yshift=-3pt]viproxy.east) -- ([yshift=-3pt]app.west);
+
+  % Application talking to backend.
+  \draw[-latex, densely dashed] ([yshift=-10pt]app.west) -- ([yshift=-10pt]viproxy.east)
+        node [midway, fill=white, circle, inner sep=0pt] {\ding{206}};
+  \draw[-latex, densely dashed] ([xshift=3pt]viproxy.north) -- ([xshift=3pt]socks.south);
+  \draw[-latex, densely dashed] ([yshift=3pt]socks.west) -- (backend.east);
 \end{tikzpicture}

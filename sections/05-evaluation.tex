@@ -1,12 +1,12 @@
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate our enclave framework with respect to security
-(\S~\ref{sec:security}), cost (\S~\ref{sec:cost}), and performance.  As for
-performance, we study the rate at which one can generate attestation documents
-(\S~\ref{sec:attestation-performance}), we present our performance test setup
-(\S~\ref{sec:test-setup}), and measure end-to-end request latency
-(\S~\ref{sec:end-to-end}).
+We evaluate our enclave framework with respect to
+security (\S~\ref{sec:security}),
+financial cost (\S~\ref{sec:cost}), and performance.  As for performance, we
+study the rate at which one can generate
+attestation documents (\S~\ref{sec:attestation-performance}) and
+measure end-to-end request latency and throughput (\S~\ref{sec:end-to-end}).
 
 \subsection{Security Considerations}
 \label{sec:security}
@@ -73,8 +73,8 @@ median of one millisecond ($s = 0.3\,\text{ms}$) to fetch the attestation
 document.\footnote{We performed our measurements on a c5.xlarge EC2 instance
 which comes with four CPUs and eight GiB of memory.}
 
-\subsection{Test setup}
-\label{sec:test-setup}
+\subsection{Application Latency and Throughput}
+\label{sec:end-to-end}
 
 Next, we set out to measure the networking latency of the critical path, as
 illustrated in Figure~\ref{fig:stress-test}.  In particular, we test the
@@ -113,9 +113,6 @@ the string ``hello world'' upon receiving requests for /hello-world.  It's
 important to use a minimalistic application because we're only interested in
 the latency that is caused by the components \emph{before} a request reaches
 the enclave application.
-
-\subsection{End-to-end Latency and Throughput}
-\label{sec:end-to-end}
 
 To simulate clients, we use the HTTP load test tool Baton~\cite{baton}.  We run
 Baton on the parent EC2 instance and instruct it to send as many requests to the
@@ -166,8 +163,8 @@ tool~\cite{iperf-vsock}.  iperf3 measures the throughput of a networking link
 using a client/server model.  In our experiment, we start an iperf3 server
 instance inside the enclave and the corresponding client instance on the parent
 EC2 instance.\footnote{The command that we ran on the server was
-\texttt{iperf-vsock \--vsock -s} and on the client \texttt{iperf-vsock --vsock
--c 4}.} The client then talks to the server via the VSOCK interface and
+``\texttt{iperf3 -{}-vsock -s}'' and on the client ``\texttt{iperf3 -{}-vsock -c
+4}.''} The client then talks to the server via the VSOCK interface and
 determines the maximum possible throughput.  In this setup, iperf3 measured a
 throughput of 4.09 GBit/s.  For comparison, when running both the iperf3 client
 \emph{and} server on the EC2 instance---which effectively measures the
