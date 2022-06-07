@@ -51,8 +51,8 @@ allows end users---regardless of their operating system---to compile the enclave
 application and end up with the exact same image ID as the enclave provider.
 %
 Fourth, there is no out-of-the-box way for enclaves to scale horizontally while
-synchronizing their key material.  We therefore designed a mechanism that allows
-enclaves to synchronize their key material.
+maintaining isolation of their key material.  We therefore designed a mechanism that allows
+enclaves to securely synchronize their key material.
 
 % Evaluation.
 Having overcome the above design challenges, we implemented an easy-to-use Go
