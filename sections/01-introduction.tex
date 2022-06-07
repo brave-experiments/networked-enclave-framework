@@ -8,21 +8,22 @@ attacks~\cite{VanBulck2018a}, injected software faults~\cite{Murdock2020a}, and
 exploited side channels introduced by shared caches~\cite{Brasser2017a}, all
 with the goal of exfiltrating information that was meant to remain in the
 enclave.  The underlying flaw that most attacks take advantage of is that the
-untrustworthy operating system and the enclave share a CPU, which opens the
-flood gates for side channel attacks.
+untrustworthy operating system and the enclave share a CPU, which provides many
+options for side channel attacks.
 
 % How Nitro enclaves are better.
 In 2020, several cloud providers began offering ``confidential computing''
 solutions; Google's is based on AMD's Secure Encrypted Virtualization
 (SEV)~\cite{googlecc} while Microsoft's is based on SGX~\cite{azurecc}.  Both
 offerings inherit the attack classes that plague their respective architectures.
-Amazon took a different path by inventing a new enclave architecture---called
-Nitro enclaves---from the ground up~\cite{nitro-enclaves}.  Nitro enclaves are
-essentially virtual machines that run on dedicated CPUs that are not shared with
-untrustworthy code.  While the architecture appears promising, Nitro enclaves
+Amazon took a different path by offering a new enclave architecture
+based on their Nitro virtual machine isolation technology~\cite{nitro-enclaves}.
+Nitro enclaves are separate virtual machines with hardware-enforced CPU,
+memory, and device isolation, which imposes limits on access by untrustworthy code.
+While the architecture appears promising, Nitro enclaves
 remain difficult to use: documentation is sparse, few applications exist, and
 enclaves can only interact with the parent EC2 instance via a constrained,
-socket-like interface.  This paper present the design, implementation, and
+socket-like interface.  This paper presents the design, implementation, and
 real-world application of a software framework that facilitates the development
 of networked Nitro enclaves.  Key features of our framework include
 (\emph{i}) the ability for enclave code to seamlessly and safely access the
@@ -50,8 +51,8 @@ allows end users---regardless of their operating system---to compile the enclave
 application and end up with the exact same image ID as the enclave provider.
 %
 Fourth, there is no out-of-the-box way for enclaves to scale horizontally while
-synchronizing their key material.  We therefore designed a mechanism that allows
-enclaves to synchronize their key material.
+synchronizing heir key material.  We therefore designed a mechanism that allows
+enclaves to securely share their key material.
 
 % Evaluation.
 Having overcome the above design challenges, we implemented an easy-to-use Go
@@ -60,9 +61,7 @@ networked enclaves.  The use of Go allows for rapid prototyping and greatly
 reduces the risk of memory corruption bugs because of Go's memory safety.  We
 conduct latency measurements to show that our framework can handle
 high-throughput and real-time applications, and we demonstrate its usefulness
-and robustness by building two production-quality applications on top of it: an
-IP address pseudonymization system and a $k$-anonymity system that is part of
-a privacy-preserving telemetry system.
+and robustness by building two applications on top of it.
 
 \paragraph{Contributions}
 
