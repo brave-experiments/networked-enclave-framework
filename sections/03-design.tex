@@ -6,7 +6,7 @@ involved parties and their respective trust assumptions
 (\S~\ref{sec:trust-assumptions}), followed by an overview of our system
 (\S~\ref{sec:overview}).  We then discuss the two major aspects of our
 framework: the build system (\S~\ref{sec:build-system}) and the framework
-(\S~\ref{sec:framework}).
+itself~(\S~\ref{sec:framework}).
 
 \subsection{Trust Assumptions}
 \label{sec:trust-assumptions}
@@ -15,7 +15,7 @@ Our setting has three participants that have the following trust assumptions:
 
 \begin{enumerate}
     \item The \emph{service provider} runs a service for its clients.  As part
-      of its operators, the service provider wants to process sensitive client
+      of its operations, the service provider wants to process sensitive client
       information.
 
     \item The \emph{client} is a user of the service provider.  It does not
@@ -58,7 +58,8 @@ steps:
 
     \item The enclave receives the nonce and asks its hypervisor to generate an
       attestation document that should contain the client-provided nonce
-      \emph{and} the fingerprint of the enclave's CA-signed certificate.  The
+      \emph{and} the fingerprint of the enclave's CA-signed certificate in
+      addition to the usual image measurement checksums.  The
       resulting attestation document is returned to the client.
 
     \item The client performs various checks (see \S~\ref{sec:attestation} for
@@ -110,7 +111,7 @@ builds of identical code to result in different image IDs.\footnote{In essence,
 a Docker image is merely a file system.  A Docker image is reproducible when
 separate build processes arrive at the exact same file system, including meta
 data like timestamps.}  To obtain reproducible builds, we replace Docker with
-the tool kaniko~\cite{kaniko}.  Kaniko's main purpose is to build container
+the kaniko tool~\cite{kaniko}.  Kaniko's main purpose is to build container
 images from a Dockerfile while itself in a container, but we use kaniko because
 it can do so reproducibly.  As long as the client and service provider use the
 same enclave source code, Go version, and kaniko version, they can build
@@ -136,7 +137,7 @@ concludes with a simple example (\S~\ref{sec:example}).
 \subsubsection{Seeding the Entropy Pool}
 \label{sec:entropy}
 
-Like virtual machines, a Nitro enclave is an entropy-starved, sterile
+Like many virtual machines, a Nitro enclave is an entropy-starved, sterile
 environment without any periphery devices that help the kernel seed its entropy
 pool.  To work around that, the Nitro hypervisor can provide randomness for the
 enclave to seed its entropy pool.  Our framework automatically takes advantage
@@ -176,7 +177,7 @@ Let's Encrypt does not publish its endpoints' IP addresses, which is why we
 cannot use point-to-point connections and have to rely on the flexibility of a
 SOCKS proxy.\footnote{We implemented both the SOCKS proxy and the TCP proxy, and
 make both available under a free license.}  Let's Encrypt then verifies that the
-enclave is in control of the domain name it purports to control, and issues a
+enclave can answer queries on behalf the requested domain name, and issues a
 certificate to the enclave (step~\ding{204}).
 
 Clients establish end-to-end encrypted TLS sessions to the enclave with the help
@@ -215,9 +216,16 @@ turn our attention to secure channels.  More specifically: how can a client rest
 assured that it is talking to audited enclave application code, without taking
 advantage of an existing trust relationship?
 
+The application can register arbitrary HTTP handlers that are accessible to the
+outside world to process data and provide services.
 Our framework provides a secure channel based on HTTPS, i.e., we make it
 possible for a client to establish an HTTPS connection with an enclave in a way
-that the TLS connection is terminated inside the enclave.  Once the enclave has
+that the TLS connection is terminated inside the enclave. Clients can use this
+channel to access the application without revealing data to third-party
+observers, or to the service provider, outside of the specific ways the enclave
+application permits.
+
+Once the enclave has
 initialized its entropy pool, it obtains an HTTPS certificate that allows
 clients to establish end-to-end encrypted session with the enclave.  Crucially,
 the HTTPS certificate \emph{lives and dies} inside the enclave and its private
@@ -230,7 +238,7 @@ because it allows for the generation of a certificate with no human interaction.
 In that case, the enclave initiates an HTTP-01 challenge\footnote{ACME supports
 multiple challenge types, with HTTP-01 being the most common one~\cite{http-01}.
 In HTTP-01, the ACME infrastructure provides the client with a token, which must
-subsequently be placed in a pre-defined file on the client's Web server.}
+subsequently be available at a pre-defined path on the client's Web server.}
 connection with Let's Encrypt's infrastructure via our SOCKS proxy (cf.
 Figure~\ref{fig:networking}), and subsequently expects an incoming connection
 from Let's Encrypt to port 80, which the hosting EC2 image forwards to the
@@ -238,9 +246,6 @@ enclave.  Note that the hosting EC2 machine could also obtain a valid CA-signed
 certificate for the same FQDN because the enclave and the EC2 image share a
 single IP address.  However, this is of little use to the EC2 machine as we will
 discuss in the next section.
-
-The application can register arbitrary HTTP handlers that are accessible to the
-outside world.
 
 \subsubsection{Remote Attestation}
 \label{sec:attestation}
@@ -384,23 +389,23 @@ happens in three steps, as illustrated in Figure~\ref{fig:key-synchronization}.
 
   \item Once a new enclave is spun up, it queries the DNS SRV record of the FQDN
     that is hard-coded in the enclave, e.g., example.com.  The DNS resolver will
-    return the record, containing a list of enclaves that are already running.
+    return the record, containing a list of enclaves that are already running and initialized.
     The new enclave picks a random enclave from the list and initiates key
     synchronization.
 
   \item The new enclave asks the existing enclave for a random nonce,
-    $\textrm{nonce}_o$.  The new enclave caches $\textrm{nonce}_o$ for one
+    $\textrm{nonce}_o$.  Each enclave caches $\textrm{nonce}_o$ for one
     minute.
 
   \item The new enclave now requests the key material from the existing enclave.
     As part of the request, it provides its attestation document that contains
     $\textrm{nonce}_o$ (to prove freshness to the existing enclave);
-    $\textrm{nonce}_n$ (the existing enclave is expected to add the nonce to its
+    $\textrm{nonce}_n$ (the existing enclave is expected to add this nonce to its
     attestation document); and $K_n$ (a public key to which the key material
     should be encrypted).  Upon receipt of the new enclave's attestation
     document, the existing enclave verifies the attestation document's signature
-    and ensures that the new enclave is running the same code, i.e., the PCR
-    value that uniquely identifies the enclave image is identical.  Once the new
+    and ensures that the new enclave is running the same code, i.e., the measured checksum
+    value that uniquely identifies the enclave image is identical.  Once the existing
     enclave is convinced that it is dealing with a genuine new enclave, it
     creates an attestation document by including $\textrm{nonce}_n$ (to prove
     freshness to the new enclave) and $\textsf{Enc}(K_n, s)$---the key material
@@ -411,12 +416,13 @@ happens in three steps, as illustrated in Figure~\ref{fig:key-synchronization}.
 \end{enumerate}
 
 % Security considerations.
-Needless to say, the security of key synchronization is paramount.  The first
-layer of defense is the fact that enclaves communicate with each other over a
-virtual network that is part of the private Kubernetes cluster that the
-enclaves run in.  Arbitrary hosts on the Internet are therefore unable to
+Needless to say, the security of key synchronization is paramount.  As a first
+layer of defense, synchronization should be configured to use a private network
+segment limited to inter-enclave communication, such as the internal network
+that is part of a Kubernetes cluster managing scaling for the application.
+Arbitrary hosts on the Internet are therefore unable to
 contact an enclave and request its key material.  The second layer of defense
-is the fact that an enclave first has to provide a valid attestation document
+is the fact that an enclave has to provide a valid attestation document
 before the origin enclave reveals its key material.  As long as the origin
 enclave knows that an identical and authentic copy of itself is asking for key
 material, it will readily provide it.
@@ -429,8 +435,8 @@ see \emph{how much} clients submit and \emph{how long} it takes the enclave to
 process data.  The EC2 image can exploit these side channels to learn more
 about the client's confidential information and computation.  While such side
 channels must be avoided, our framework is not the place to do so.  Instead, it
-is the application developer's responsibility to identify and address side
-channels.  Section~\ref{sec:applications} introduces two applications and
+is the application developer's responsibility to identify and address this class of
+attacks.  Section~\ref{sec:applications} introduces two applications and
 discusses side channel attacks in their respective setting.
 
 Similarly, programming bugs in the enclave application are also out of scope for

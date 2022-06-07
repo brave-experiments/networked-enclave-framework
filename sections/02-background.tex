@@ -52,18 +52,18 @@ In this work, we build on top of AWS's Nitro enclaves.  Nitro enclaves are
 isolated and constrained virtual machines that run alongside an EC2 instance
 that is responsible for starting the enclave, and communicating with it.
 Crucially, an enclave does not share hardware resources with its parent EC2
-image; it is guaranteed to have its own CPU and memory which is physically
-isolated from the parent EC2 image.  The same hypervisor that isolates EC2
-instances from each other also isolates an EC2 instance from its Nitro enclave.
+image; it is guaranteed to have its own CPU and memory which is
+isolated from the parent EC2 image by the same hypervisor that isolates EC2
+instances from each other.
 As far as computing resources go, Nitro enclaves are essentially an independent
 computer, with its own operating system, CPU, and memory, but \emph{without} a
 networking interface or persistent storage.  By design, the enclave's network
 traffic must go through the parent EC2 instance, constrained to a minimal VSOCK
 interface~\cite{vsock}. Originally proposed for communication between a
 hypervisor and its virtual machines, AWS repurposed the VSOCK interface to serve
-as communication channel between an enclave and its parent EC2 image.  From a
+as communication channel between an enclave and its parent EC2 instance.  From a
 developer's point of view, the VSOCK interface is a point-to-point interface
-connecting the enclave to its parent EC2 image.  On the address layer, 32-bit
+connecting the two.  On the address layer, 32-bit
 context IDs take the role of IP addresses in VSOCK interfaces.  For example, the
 enclave may have context ID 4 while its parent EC2 instance may have context ID
 3.  On the transport layer, one can use the same protocols that one can use over
