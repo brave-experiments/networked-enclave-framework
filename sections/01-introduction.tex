@@ -21,15 +21,16 @@ Nitro enclaves---from the ground up~\cite{nitro-enclaves}.  Nitro enclaves are
 essentially virtual machines that run on dedicated CPUs that are not shared with
 untrustworthy code.  While the architecture appears promising, Nitro enclaves
 remain difficult to use: documentation is sparse, few applications exist, and
-enclaves can only interact with the outside world via a constrained VSOCK
-interface.  This paper present the design, implementation, and real-world
-application of a software framework that facilitates the development of
-networked Nitro enclaves.  Key features of our framework include
-(\emph{i}) the ability for enclave code to seamlessly access the Internet;
+enclaves can only interact with the parent EC2 instance via a constrained,
+socket-like interface.  This paper present the design, implementation, and
+real-world application of a software framework that facilitates the development
+of networked Nitro enclaves.  Key features of our framework include
+(\emph{i}) the ability for enclave code to seamlessly and safely access the
+Internet;
 (\emph{ii}) a design for the horizontal scaling of enclaves by synchronizing
 secret key material; and
-(\emph{iii}) a reproducible build system and tooling for users to remotely
-verify an enclave's authenticity.
+(\emph{iii}) a reproducible build system and tooling that allows users to
+remotely verify an enclave's authenticity.
 
 % Challenges that we had to overcome.
 During the development of our framework, we had to overcome several challenges.
@@ -53,15 +54,15 @@ synchronizing their key material.  We therefore designed a mechanism that allows
 enclaves to synchronize their key material.
 
 % Evaluation.
-Having overcome the above design challenges, we implemented an easy-to-use Go framework
-that abstracts away the nuances of working with networked enclaves.  The use of
-Go helps keep the trusted computing base small and greatly reduces the risk of
-memory corruption bugs.  We conduct latency measurements to show that our
-framework can handle high-throughput and real-time applications, and we
-demonstrate its usefulness and robustness by building two production-quality
-applications on top of it; (\emph{i}) an IP address pseudonymization service,
-and (\emph{ii}) a $k$-anonymity service that is part of a privacy-preserving
-telemetry system.
+Having overcome the above design challenges, we implemented an easy-to-use Go
+framework that abstracts away the difficulties and pitfalls of working with
+networked enclaves.  The use of Go allows for rapid prototyping and greatly
+reduces the risk of memory corruption bugs because of Go's memory safety.  We
+conduct latency measurements to show that our framework can handle
+high-throughput and real-time applications, and we demonstrate its usefulness
+and robustness by building two production-quality applications on top of it: an
+IP address pseudonymization system and a $k$-anonymity system that is part of
+a privacy-preserving telemetry system.
 
 \paragraph{Contributions}
 
@@ -78,9 +79,9 @@ This work makes three core contributions.
     applications that can easily scale horizontally to respond to increases in
     load.
 
-  \item We build two real-world applications on top of our framework.  The
-    design of the first application---an IP address pseudonymization system---is
-    a contribution in its own right.
+  \item We build two real-world applications on top of our framework, the first
+    of which---a remotely verifiable IP address pseudonymization system---is a
+    contribution in its own right.
 \end{itemize}
 
 \paragraph{Structure}
@@ -89,8 +90,8 @@ Section~\ref{sec:background} provides background on secure enclaves in general
 and AWS Nitro enclaves in particular.  Section~\ref{sec:design} introduces the
 design and implementation of our software framework in addition to the build
 process that guarantees reproducible enclave application builds, followed by
-Section~\ref{sec:applications} which presents two production-quality
-applications that are built on top of our framework.  We measure our framework's
-networking performance in Section~\ref{sec:evaluation} and discuss its
-limitations in Section~\ref{sec:limitations}.  Finally,
-Section~\ref{sec:related-work} contrasts our work with past research.
+Section~\ref{sec:applications}, which presents two production-quality
+applications that we built on top of our framework.  We evaluate our framework
+in Section~\ref{sec:evaluation} and discuss its limitations in
+Section~\ref{sec:limitations}.  Finally, Section~\ref{sec:related-work}
+contrasts our work with past research.
