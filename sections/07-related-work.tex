@@ -33,7 +33,7 @@ libraries are implemented in C/C++ and are hardware agnostic, meaning that the
 ``enclave backend'' can be switched from, say, TrustZone to SGX.  While
 frameworks render enclave development more convenient, memory unsafe languages
 like C and C++ make it dangerously easy to introduce memory corruption bugs
-that may jeopardize the security of the enclave~\cite{Lee2017a}.  Cognizant of
+that jeopardize the security of the enclave~\cite{Lee2017a}.  Cognizant of
 this issue, Wang et al. implemented a performant Rust layer on top of Intel's
 C++-based SGX SDK, making it possible to develop memory-safe applications in
 SGX~\cite{Wang2019a}.
