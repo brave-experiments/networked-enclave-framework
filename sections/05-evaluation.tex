@@ -17,11 +17,11 @@ There are three key components to the overall security of enclave applications;
 
 The very foundation of our framework's security lies in the soundness of the
 design of Nitro enclaves.  While Amazon published the conceptual design, the
-concrete hardware and software implementation remains confidential.
-Amazon's decision to allocate physically separate resources to enclaves appears
-promising, but the coming years will tell if the implementation can resist the types
-of attacks that have been plaguing SGX.  If we assume that Nitro enclaves are
-acceptably secure, the next critical layer is our software framework.
+concrete hardware and software implementation remains confidential.  The
+decision to allocate physically separate resources to enclaves appears promising
+but only time will tell if Nitro enclaves can resist the types of attacks that
+have been plagueing SGX.  If we assume that Nitro enclaves are acceptably
+secure, the next critical layer is our software framework.
 
 A significant security aspect of our framework is its size; it is well
 understood that complexity is the enemy of security.  Our framework counts less
@@ -30,24 +30,25 @@ by either us or the Go project.\footnote{The dependencies are chi~\cite{chi}
 (provides an HTTP request router), nsm~\cite{nsm} (provides an interface to
 interact with the Nitro hypervisor), vsock~\cite{vsock} (provides an API for the
 VSOCK address family), and tenus~\cite{tenus} (provides an API to configure
-Linux's networking devices).} Four is worse than zero, but it is still
-manageable and reasonably easy to audit in its entirety.  We believe that our
-choice of using Go and the deliberately small trusted computing base greatly
-reduces---but does not eliminate!---the attack surface.
+Linux's networking devices).}  Four is worse than zero, but is still manageable
+and reasonably easy to audit in its entirety.  We believe that our choice of
+using Go and the deliberately small trusted computing base greatly reduces---but
+does not eliminate!---the attack surface.
 
 The highest layer in the software stack is the enclave application itself.  The
 biggest security threat are side channel attacks and programming bugs---both
-unintentional and intentional.  It is the application developer's responsibility
-to prevent side channel attacks and write bug-free code.  As we pointed out in
-Section~\ref{sec:limitations}, programming bugs can be intentional, i.e., the
-service provider may deliberately introduce bugs that leak sensitive
-information, and hope that it won't get caught.
+unintentional and intentional.  It is the application developer's
+responsibility to prevent side channel attacks and write bug-free code.  As we
+pointed out in Section~\ref{sec:limitations}, programming bugs can be
+intentional, i.e., the service provider may deliberately introduce bugs that
+leak sensitive information.  From the user's point of view, eternal vigilance
+is therefore the price of security.
 
 \subsection{Financial Cost}
 \label{sec:cost}
 
 Nitro enclaves do not incur any extra cost in addition to what the underlying
-EC2 instance costs---they can be considered a ``free'' extension to EC2.  Nitro
+EC2 host costs---they can be considered a ``free'' extension to EC2.  Nitro
 enclaves are however only available for select types of EC2 instances because
 they require their own CPU and a minimum amount of memory, and those instance
 types are pricier than the lowest tier that AWS offers.
@@ -55,9 +56,9 @@ types are pricier than the lowest tier that AWS offers.
 We are currently working on deploying the IP address pseudonymization prototype
 that we introduced in Section~\ref{sec:pseudonymization}.  We estimate that our
 enclave is going to have to handle an average of 5,000 requests per minute,
-coming from more than ten million clients.  Our test deployment uses a single c5.xlarge
-EC2 instance in the U.S. East region which costs \$0.17 per hour to operate,
-amounting to approximately \$125 per month.
+coming from more than ten million clients.  Our test deployment uses a single
+c5.xlarge EC2 host in the U.S. East region which costs \$0.17 per hour to
+operate, amounting to approximately \$125 per month.
 
 \subsection{Attestation Documents}
 \label{sec:attestation-performance}
@@ -65,13 +66,13 @@ amounting to approximately \$125 per month.
 The fetching of attestation documents is a critical part of our framework's
 overall performance.  We wrote a stress test tool that requests as many
 attestation documents as it can over sixty seconds.  The tool is essentially a
-minimal enclave application that does nothing but requesting attestation
-documents.  For each attestation document, we asked the hypervisor to include
-an incrementing nonce, to avoid any speedups by caching.  We were able to
-receive approximately 900 documents per second, with each request taking a
-median of one millisecond ($s = 0.3\,\text{ms}$) to fetch the attestation
-document.\footnote{We performed our measurements on a c5.xlarge EC2 instance
-which comes with four CPUs and eight GiB of memory.}
+minimal enclave application that requests attestation documents in a loop.  For
+each attestation document, we asked the hypervisor to include an incrementing
+nonce, to avoid any speedups by caching.  We were able to obtain approximately
+900 documents per second, with each request taking a median of one millisecond
+($s = 0.3\,\text{ms}$) to fetch the attestation document.\footnote{We performed
+our measurements on a c5.xlarge EC2 host which comes with four CPUs and eight
+GiB of memory.}
 
 \subsection{Application Latency and Throughput}
 \label{sec:end-to-end}
@@ -109,13 +110,13 @@ much latency each component in our data flow adds:
 
 As part of our measurement setup, We first deploy the code from
 Figure~\ref{fig:hello-world}---a minimalistic application that responds with
-the string ``hello world'' upon receiving requests for /hello-world.  It's
-important to use a minimalistic application because we're only interested in
-the latency that is caused by the components \emph{before} a request reaches
+the string ``hello world'' upon receiving requests for the path /hello-world.
+It's important to use a minimalistic application because we're only interested
+in the latency that is caused by the components \emph{before} a request reaches
 the enclave application.
 
 To simulate clients, we use the HTTP load test tool Baton~\cite{baton}.  We run
-Baton on the parent EC2 instance and instruct it to send as many requests to the
+Baton on the parent EC2 host and instruct it to send as many requests to the
 TCP proxy as possible within 30 seconds, using 50 concurrent threads.  We had to
 patch Baton's source code to add VSOCK support (to be able to send requests
 directly to the enclave via the VSOCK interface) and to log latency
@@ -127,10 +128,12 @@ networking latency) and the enclave application is likely to be more complex
 
 Figure~\ref{fig:latency-msmts} illustrates the results for our three test
 setups.  The full pipeline is able to sustain 7,500 requests per second, with a
-mean latency of 12.7 milliseconds.  Removing the proxy increases the requests
-to 14,100 per second and lowers the mean latency to 6.5.  Finally, a direct
-connection to the application---without proxy and VSOCK interface--handles
-27,900 requests per second, and a mean latency of only 3.2 milliseconds.
+mean latency of 12.7 milliseconds.  Removing the proxy nearly doubles the
+requests to 14,100 per second and lowers the mean latency to 6.5.  Finally, a
+direct connection to the application---without proxy and VSOCK interface--once
+again nearly doubles the number of requests, reaching 27,900 per second, with a
+mean latency of only 3.2 milliseconds.  Figure~\ref{fig:latency-cdf} shows the
+empirical CDF of the same latency measurements for our three test setups.
 
 \begin{figure}[t]
     \centering
@@ -147,8 +150,6 @@ connection to the application---without proxy and VSOCK interface--handles
     \label{fig:latency-msmts}
 \end{figure}
 
-Figure~\ref{fig:latency-cdf} shows the empirical CDF of the same latency
-measurements for our three test setups.
 
 \begin{figure}[t]
     \centering
@@ -162,13 +163,13 @@ To that end, we use a VSOCK-enabled fork of the iperf3 performance measurement
 tool~\cite{iperf-vsock}.  iperf3 measures the throughput of a networking link
 using a client/server model.  In our experiment, we start an iperf3 server
 instance inside the enclave and the corresponding client instance on the parent
-EC2 instance.\footnote{The command that we ran on the server was
+EC2 host.\footnote{The command that we ran on the server was
 ``\texttt{iperf3 -{}-vsock -s}'' and on the client ``\texttt{iperf3 -{}-vsock -c
 4}.''} The client then talks to the server via the VSOCK interface and
 determines the maximum possible throughput.  In this setup, iperf3 measured a
 throughput of 4.09 GBit/s.  For comparison, when running both the iperf3 client
-\emph{and} server on the EC2 instance---which effectively measures the
-throughput of the EC2 instance's loopback interface---we achieve 55.5 GBit/s of
+\emph{and} server on the EC2 host---which effectively measures the
+throughput of the EC2 host's loopback interface---we achieve 55.5 GBit/s of
 throughput.
 
 To develop intuition on the perceived network performance of Nitro enclaves, we

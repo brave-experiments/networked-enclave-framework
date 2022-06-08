@@ -1,10 +1,10 @@
 \section{Applications}
 \label{sec:applications}
 
-We demonstrate the practicality of our system by building on it to solve two
-real-world problems.  First, in a novel system that pseudonymizes client IP
-addresses for anti-fraud (\S~\ref{sec:pseudonymization}); second, to implement
-the shuffler service as proposed in the PROCHLO paper~\cite{Bittau2017a}
+We demonstrate the practicality of our framework by building two applications on
+to pof it.  First, in a novel system that pseudonymizes client IP addresses for
+anti-fraud (\S~\ref{sec:pseudonymization}); second, to implement the shuffler
+component that is part of Bittau et al.'s PROCHLO paper~\cite{Bittau2017a}
 (\S~\ref{sec:shuffler}).  In both cases, we had to overcome minor obstacles but
 found that our framework greatly facilitated the deployment of enclave code.
 
@@ -32,17 +32,17 @@ addresses to strengthen its anti-fraud efforts?  Or continue to discard the
 addresses, and tolerate the fraud?
 
 This section presents an application that strikes a balance between these two
-extremes; an IP address pseudonymization system that can verifiably---thanks to
-enclaves---pseudonymize IP addresses.  The service provider can then run its
-anti-fraud logic over pseudonymized IP addresses rather than real ones.  While
-some information is lost in the process, we argue that what's most
-important---the relationship between IP addresses---can be preserved thanks to
-our use of the Crypto-PAn scheme that Xu et al. presented in their 2001
-paper~\cite{Xu01a}.  Crypto-PAn encrypts both IPv4 and IPv6 addresses by
-implementing a 1:1 mapping $f$ that is keyed by $k$ from an IP address to its
-pseudonymized equivalent while \emph{preserving the address's prefix}, i.e., two
-IP addresses that share an $n$-bit prefix also share an $n$-bit prefix after
-pseudonymization as illustrated by the following example:
+extremes; an IP address pseudonymization system that can verifiably pseudonymize
+IP addresses.  The service provider can then run its anti-fraud logic over
+pseudonymized IP addresses rather than real ones.  While some information is
+lost in the process, we argue that what's most important---the relationship
+between IP addresses---can be preserved thanks to our use of the Crypto-PAn
+scheme that Xu et al. presented in their 2001 paper~\cite{Xu01a}.  Crypto-PAn
+encrypts both IPv4 and IPv6 addresses by implementing a 1:1 mapping $f$ that is
+keyed by $k$ from an IP address to its pseudonymized equivalent while
+\emph{preserving the address's prefix}, i.e., two IP addresses that share an
+$n$-bit prefix also share an $n$-bit prefix after pseudonymization as
+illustrated by the following example:
 
 \begin{align}
 f(k, \textrm{``\underline{10.0.0.}1''})\phantom{23} = \textrm{``\underline{242.32.192.}193''} \\
@@ -56,13 +56,13 @@ proxy is configured to mirror incoming client requests to the enclave, but with
 client IP addresses intact, in the form of a custom HTTP header like
 \texttt{X-Client-Addr: 1.2.3.4}.  The service is interactive, and responds to
 the client, but the enclave is passive, and simply consumes the requests.
-Recall that the (untrustworthy) EC2 image that hosts the enclave is unable to
-see the client's IP address because the TLS proxy establishes a TLS session
-that's terminated \emph{inside} the enclave.  The pseudonymizer takes as input
-client requests, extracts the IP address that the proxy inserted from the HTTP
-header, pseudonymizes them, and forwards pseudonymized addresses in batches to
-the configured back end.  Components in dark gray are under the service
-provider's control.
+Recall that the (untrusted) EC2 host that hosts the enclave is unable to see
+the client's IP address because the TLS proxy establishes a TLS session that's
+terminated \emph{inside} the enclave.  The pseudonymizer takes as input client
+requests, extracts the IP address that the proxy inserted from the HTTP header,
+pseudonymizes them, and forwards pseudonymized addresses in batches to the
+configured back end.  Components in dark gray are under the service provider's
+control.
 
 \begin{figure}[t]
 \centering
@@ -79,17 +79,20 @@ One problem however remains: how do clients know that the TLS proxy is in fact
 configured to discard client IP addresses before forwarding requests to the
 service?  Unfortunately, cloud providers don't offer satisfying solutions for
 this problem but some cloud providers allow for the creation of roles whose
-permissions are configurable.  The service provider could create a read-only
-role in the configuration interface for the TLS proxy and publish the
-credentials for this role.  Doubtful users can then log in to this role and
-verify that the TLS proxy is configured to discard IP addresses when forwarding
-requests to the service.  As long as the TLS proxy operator is a neutral third
-party with no incentive to lie, both the client and service provider can trust
+permissions are configurable.  The service provider can create a read-only role
+in the TLS proxy's configuration interface and publish the credentials for this
+role.  Doubtful users can then log in to this role and verify that the TLS proxy
+is configured to discard IP addresses when forwarding requests to the service.
+As long as the TLS proxy operator is a neutral third party with no incentive to
+lie, which is typically the case, both the client and service provider can trust
 it.  We acknowledge that this is not an elegant solution but a mere hack, to
 work around the shortcoming of Nitro enclaves not having a networking interface.
+If enclaves had a networking interface that could not be monitored by the
+untrusted EC2 host, clients could directly talk to the enclave, obviating the
+need for a TLS proxy that hides client IP addresses from the EC2 host.
 
 \paragraph{Side channels}
-The untrustworthy parent EC2 instance never sees client IP address in plaintext
+The untrusted EC2 host never sees client IP address in plaintext
 but it can exploit timing and volume side channels to infer information about
 the encrypted requests that the TLS proxy forwards to the enclave.  We close
 this side channel by adding code to the enclave application which queues
@@ -97,25 +100,24 @@ pseudonymized IP addresses until two conditions are true: (\emph{i}) we have at
 least $n$ pseudonymized addresses, and (\emph{ii}) at least $t$ minutes have
 passed.
 
-\paragraph{Key rotation}
-A single pseudonymous IP address without context cannot be reversed and reveals
-nothing about its corresponding plaintext IP address but that changes if the
-service provider expects the client to repeatedly report its IP address to the
-enclave.  For example, a sequence of pseudonymized IP addresses can reveal
-either that (\emph{i}) the client has not changed its IP address, or (\emph{ii})
-the client changed its IP address but is likely to use the same ISP (e.g., if
-the /24 prefix remains the same), or (\emph{iii}) the client changed IP
-addresses \emph{and} ISPs (e.g., if the prefixes of the pseudonymous IP
-addresses share less than, say, eight bits).  While this is useful information
-for anti-fraud operations,\footnote{For example, a service provider would deem a
-client that constantly changed ISPs suspicious; it is likely to use proxies to
-connect to the service provider's infrastructure.} it also reveals a lot about a
-given client's location, and service providers may want to err more on the side
-of client privacy.  We therefore added a mechanism for periodic key rotation, so
-a given client's pseudonymized IP addresses are only meaningful within a given
-rotation period.  According to the results of Padmanabhan et al., we believe
-that a key rotation period of three weeks strikes a useful balance between
-privacy for the client and usefulness for the service
+\paragraph{Key rotation} A single pseudonymous IP address without context cannot
+be reversed and reveals nothing about its corresponding plaintext IP address but
+that changes if the service provider expects the client to repeatedly report its
+IP address to the enclave.  For example, a sequence of pseudonymized IP
+addresses can reveal either that (\emph{i}) the client has not changed its IP
+address, or (\emph{ii}) the client changed its IP address but is likely to use
+the same ISP (e.g., if the /24 prefix remains the same), or (\emph{iii}) the
+client changed IP addresses \emph{and} ISPs (e.g., if the prefixes of the
+pseudonymous IP addresses share less than, say, eight bits).  While this is
+useful information for anti-fraud operations,\footnote{For example, a service
+provider would deem a client that constantly changed ISPs suspicious; it is
+likely to use proxies to connect to the service provider's infrastructure.} it
+also reveals information about a given client's location, and service providers
+may want to err on the side of privacy instead.  We therefore added a mechanism
+for periodic key rotation, so a given client's pseudonymized IP addresses are
+only meaningful within a given rotation period.  According to the results of
+Padmanabhan et al., we believe that a key rotation period of three weeks strikes
+a useful balance between privacy for the client and usefulness for the service
 provider~\cite[\S~3.2]{Padmanabhan20a}: several ISPs re-assign many of their
 users' IP addresses in less than---or up to---two weeks.
 
@@ -128,12 +130,12 @@ logic are beyond the scope of this paper.
 Our pseudonymization service counts approximately 1,000 lines of code, including
 comments and tests.  It is important to keep the source code small for both
 security and transparency: a large code base is more likely to have
-security-critical bugs and is also more difficult to audit for users.
+security-critical bugs and is also more difficult for users to audit.
 
 \paragraph{Alternative pseudonymization}
 In addition to Crypto-PAn, we implemented a second pseudonymization method that
 is based on HMAC-SHA-256.  Like Crypto-PAn, the HMAC is keyed by a 160-bit
-secret that the enclave generates when first bootstrapping.  Unlike Crypto-PAn,
+secret that the enclave generates when first bootstrapping.  Unlike Crypto-PAn
 however, the HMAC-based method does not preserve the prefixes of IP addresses:
 two IP addresses that differ in only a single bit will result in entirely
 different hashes.  On the privacy/utility spectrum, the HMAC-based method
@@ -146,20 +148,21 @@ Bittau et al.'s SOSP'17 paper~\cite{Bittau2017a} proposes a private analytics
 system that helps service providers gain insight into their clients' usage
 patterns.  Their system---called PROCHLO---consists of three components:
 (\emph{i}) software running on the client, which can (but doesn't have to) add
-local differential privacy to client measurements.  These measurements are then
-sent to (\emph{ii}) a shuffler, which enforces a configurable $k$-anonymity
-threshold on incoming measurements.  The shuffler then sends measurements meeting that threshold
-to (\emph{iii}) an analytics system that the service provider uses
-to explore users' anonymized data.  The PROCHLO paper envisions the shuffler
-running in a secure enclave; otherwise users would have no reason to trust that the
-shuffler is in fact enforcing $k$-anonymity thresholds.  To that end, the
-authors designed the shuffler to run inside an Intel SGX enclave, which was
-challenging considering the memory constraints that SGX imposes.  For more
-details about the shuffler, refer to the original PROCHLO
-paper~\cite[\S~3.3]{Bittau2017a}.
+local differential privacy to client measurements.  Measurements consist of
+product-relevant answers to questions like ``has the user interacted with her
+browser in the last 24 hours?'' These measurements are then sent to (\emph{ii})
+a shuffler, which enforces a configurable $k$-anonymity threshold on incoming
+measurements.  The shuffler then sends measurements meeting that threshold to
+(\emph{iii}) an analytics system that the service provider uses to explore
+users' anonymized data.  The PROCHLO paper envisions the shuffler running in a
+secure enclave; otherwise users would have no reason to trust that the shuffler
+is in fact enforcing $k$-anonymity thresholds.  To that end, the authors
+designed the shuffler to run inside an Intel SGX enclave, which was challenging
+considering the memory constraints that SGX imposes.  For more details about the
+shuffler, refer to the original PROCHLO paper~\cite[\S~3.3]{Bittau2017a}.
 
 As part of an unrelated research project, we were experimenting with private
-telemetry, and we therefore used our framework to re-implemented the shuffler in
+telemetry, and we therefore used our framework to re-implement the shuffler in
 approximately 1,000 lines of code.\footnote{The code is freely available but we
 omit a link to it to preserve our anonymity.}  Our implementation is a
 near-complete clone of the shuffler as it was proposed in the PROCHLO paper but
@@ -186,15 +189,15 @@ authentic enclave.
 \end{figure}
 
 Compared to Bittau et al.'s original, SGX-based design, our Nitro-based
-implementation has two key advantages: (\emph{i}) Nitro's underlying hardware
+implementation has two key advantages: (\emph{i})~Nitro's underlying hardware
 isolation makes our implementation more robust to hardware side channel attacks
-and (\emph{ii}) Nitro doesn't suffer from the same resource constraints as SGX,
+and (\emph{ii})~Nitro doesn't suffer from the same resource constraints as SGX,
 which renders our implementation easier to use and less error-prone.
 
 \paragraph{Side channels}
-The untrustworthy parent EC2 instance can take advantage of the same side
-channel as with the IP address pseudonymizer.  In particular, the EC2 instance
+The untrustworthy parent EC2 host can take advantage of the same side
+channel as with the IP address pseudonymizer.  In particular, the EC2 host
 can observe when and how many requests clients make.  Like with the IP address
 pseudonymizer, the PROCHLO paper closes this side channel by aggregating
-requests, preventing the EC2 instance from linking incoming to outgoing
+requests, preventing the EC2 host from linking incoming to outgoing
 requests.

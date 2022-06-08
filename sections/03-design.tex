@@ -51,7 +51,7 @@ steps:
       deterministic build system, resulting in an image checksum.
 
     \item The client establishes an end-to-end encrypted network connection with
-      the enclave, facilitated by the EC2 instance blindly forwarding encrypted
+      the enclave, facilitated by the EC2 host blindly forwarding encrypted
       bytes.  Right \emph{after} establishing the TLS connection but
       \emph{before} revealing any sensitive information, the client provides a
       nonce and asks the enclave for an attestation document.
@@ -192,7 +192,7 @@ leak data to an attacker-controlled endpoint via the SOCKS proxy, which is why
 we use an allow list on the SOCKS proxy.  It is the service provider's
 responsibility to maintain the allow list.\footnote{Note that clients are unable
 to remotely verify that the service provider correctly configured an allow list
-because the SOCKS proxy runs on the EC2 instance and not in the enclave
+because the SOCKS proxy runs on the EC2 host and not in the enclave
 application.}  In a minimal application, the allow list consists of two
 endpoints:
 
@@ -212,7 +212,7 @@ reject the connection.
 \label{sec:cert}
 
 Having established how the enclave can send and receive network packets, we now
-turn our attention to secure channels.  More specifically: how can a client rest
+turn our attention to secure channels; specifically: how can a client rest
 assured that it is talking to audited enclave application code, without taking
 advantage of an existing trust relationship?
 
@@ -225,57 +225,59 @@ channel to access the application without revealing data to third-party
 observers, or to the service provider, outside of the specific ways the enclave
 application permits.
 
-Once the enclave has
-initialized its entropy pool, it obtains an HTTPS certificate that allows
-clients to establish end-to-end encrypted session with the enclave.  Crucially,
-the HTTPS certificate \emph{lives and dies} inside the enclave and its private
-key cannot be extracted (or injected) by the service provider because enclaves
-are sealed at runtime.  Our framework allows for the creation of a self-signed
-certificate or a CA-signed certificate.  If a self-signed certificate is
-desired, the framework creates and signs a certificate for a given FQDN.  To get
-a CA-signed certificate, the framework uses Let's Encrypt's ACME protocol
-because it allows for the generation of a certificate with no human interaction.
-In that case, the enclave initiates an HTTP-01 challenge\footnote{ACME supports
-multiple challenge types, with HTTP-01 being the most common one~\cite{http-01}.
-In HTTP-01, the ACME infrastructure provides the client with a token, which must
-subsequently be available at a pre-defined path on the client's Web server.}
-connection with Let's Encrypt's infrastructure via our SOCKS proxy (cf.
-Figure~\ref{fig:networking}), and subsequently expects an incoming connection
-from Let's Encrypt to port 80, which the hosting EC2 image forwards to the
-enclave.  Note that the hosting EC2 machine could also obtain a valid CA-signed
-certificate for the same FQDN because the enclave and the EC2 image share a
-single IP address.  However, this is of little use to the EC2 machine as we will
-discuss in the next section.
+Once the enclave has initialized its entropy pool, it obtains an HTTPS
+certificate that allows clients to establish end-to-end encrypted session with
+the enclave.  Crucially, the HTTPS certificate \emph{lives and dies} inside the
+enclave and its private key cannot be extracted (or injected) by the service
+provider because enclaves are sealed at runtime.  Our framework allows for both
+the creation of a self-signed or a CA-signed certificate.  If a self-signed
+certificate is desired, the framework creates and signs a certificate for a
+given FQDN.  To get a CA-signed certificate, the framework uses Let's Encrypt's
+ACME protocol because it allows for the generation of a certificate with no
+human interaction.  In that case, the enclave initiates an HTTP-01
+challenge\footnote{ACME supports multiple challenge types, with HTTP-01 being
+the most common one~\cite{http-01}.  In HTTP-01, the ACME infrastructure
+provides the client with a token, which must subsequently be available at a
+pre-defined path on the client's Web server.} connection with Let's Encrypt's
+infrastructure via our SOCKS proxy (cf.  Figure~\ref{fig:networking}), and
+subsequently expects an incoming connection from Let's Encrypt to port 80, which
+the EC2 host forwards to the enclave.  Note that the EC2 host can also obtain a
+CA-signed certificate for the same FQDN because the enclave and the EC2 host
+share an IP address.  This is however of little use to the EC2 host as we will
+show in the next section.
 
 \subsubsection{Remote Attestation}
 \label{sec:attestation}
 
 By default, Nitro enclaves only allow for local attestation.  We now discuss how
-we allow clients to remotely attest an enclave.  After the client establishes an
-HTTPS connection with the enclave, it needs to know that (\emph{i}) the TLS
-connection it just established is terminated inside the enclave (instead of by
-the hosting EC2 machine) and (\emph{ii}) the enclave is running the code that
-the user audited in the previous step.  To that end, the client requests the
-enclave's \emph{attestation document}---a hypervisor-signed document that
-attests to the container image ID that the enclave is running.  Enclaves
-communicate with the hypervisor via the ioctl system call, which makes use of
-/dev/nsm, a device that is only available inside a Nitro enclaves.  To request
-an attestation document, the client provides a \emph{nonce}---a 20-byte random
-value---whose purpose is to prevent the service provider from replaying
-attestation documents.  Phrased differently, the client provides a nonce to
-convince itself that it's talking to a live enclave.  In particular, clients
-make the following HTTP request to request an attestation document:
+we allow clients to remotely retrieve and verify an enclave's attestation.
+After the client establishes an HTTPS connection with the enclave, it needs to
+know that (\emph{i}) the TLS connection it just established is terminated inside
+the enclave (instead of by the EC2 host) and (\emph{ii}) the enclave is running
+the code that the user audited in the previous step.  To that end, the client
+requests the enclave's \emph{attestation document}---a hypervisor-signed
+document that attests to the container image ID that the enclave is running.
+Enclaves communicate with the hypervisor via the ioctl system call, which makes
+use of /dev/nsm, a device that is only available inside a Nitro enclaves.  To
+request an attestation document, the client provides a \emph{nonce}---a 160-bit
+random value---whose purpose is to prevent the service provider from replaying
+outdated attestation documents.  Phrased differently, the client provides a
+nonce to convince itself that it's talking to a live enclave.  In practice,
+clients make the following HTTP request to obtain an enclave's attestation
+document:
 
 \begin{lstlisting}[numbers=none,basicstyle=\small\ttfamily]
 GET /attestation?nonce=8083...23b7 HTTP/1.1
 \end{lstlisting}
 
-The enclave receives the request and the provided nonce through the TCP proxy,
-asks the hypervisor to include the nonce \emph{and} the fingerprint of the
-enclave's X.509 certificate in the attestation document, and sends the resulting
-attestation document to the client.  By asking the hypervisor to include the
-certificate fingerprint in the attestation document, we effectively bind a TLS
-session to an enclave.  The client then verifies the following in order:
+The enclave receives the request through the TCP proxy, asks the hypervisor to
+include the nonce \emph{and} the fingerprint of the enclave's X.509 certificate
+in the attestation document, and sends the resulting attestation document to the
+client.  By asking the hypervisor to include the certificate fingerprint in the
+attestation document, we effectively bind a TLS session to an enclave, which is
+key to assuring the client that it is in fact talking to an enclave.  Upon
+receiving the attestation document, the client then verifies the following in
+order:
 
 \begin{enumerate}
     \item The attestation document is signed by the AWS PKI whose public key is
@@ -287,56 +289,57 @@ session to an enclave.  The client then verifies the following in order:
       compiled locally.
 \end{enumerate}
 
-If all four conditions hold, the client is convinced that it's talking to an
-enclave that runs the code that the client audited in the previous step, and
-that the TLS connection is terminated in the enclave.  Note that the hosting EC2
-machine is able to intercept HTTPS connections with its own CA-signed
-certificate but clients will only trust the EC2 machine if (and only if) it can
-present an attestation document that is valid for the enclave image, which it
-can't because it is unable to spoof the AWS PKI signature that protects the
-attestation document.  The only way for the EC2 machine to obtain such an
-attestation document is to spawn an enclave that runs the exact code that the
-client is expecting---and it already is doing exactly that.  Now that the client
-has established a trust relationship with the enclave, it's ready to send
-sensitive information to the enclave.
+Only if all four conditions hold is the client convinced that it is talking to
+an enclave running the code that the client audited, and that the TLS connection
+is terminated by the enclave.  Note that the EC2 host is able to intercept HTTPS
+connections with its own CA-signed certificate but clients will only trust the
+EC2 host if (and only if) it can present an attestation document that is valid
+for the enclave image, which it can't because it is unable to spoof the AWS PKI
+signature that authenticates the attestation document.  The only way for the EC2
+host to obtain such an attestation document is to spawn an enclave that runs the
+exact code that the client is expecting---and it already is doing exactly that.
+Now that the client has established a trust relationship with the enclave, it is
+ready to reveal sensitive information to the enclave.
 
-While attestation documents can be generated quickly and in rapid
-succession---we present performance measurements in
-Section~\ref{sec:attestation-performance}---they do require an extra round trip
+While attestation documents can be generated quickly and in rapid succession
+(cf. \S~\ref{sec:attestation-performance}), they do require an extra round trip
 between the client and the enclave before the client is willing to reveal
 sensitive information: the client first provides a nonce to the enclave, the
-enclave responds with an attestation document, and only after the client verified
-the document is it willing to reveal its sensitive information.  To eliminate
-that round trip, clients should use TLS session resumption once they have
-verified the enclave's attestation document.  The service provider is unable to
-tamper with the enclave's key material, so it's safe to re-use a
-once-established TLS session and forgo the unnecessary round trip.
+enclave responds with an attestation document, and only after the client
+verified the document is it willing to reveal its sensitive information.  To
+eliminate unnecessary future round trips, clients should use TLS session
+resumption once they have verified the enclave's attestation document.  The
+service provider is unable to see the secret key material that protects the TLS
+session between client and enclave, so it is safe to re-use a once-established
+TLS session and forgo the unnecessary round trip.
 
-\paragraph{Client-side Verification}
+\paragraph{Manual Client-side Verification}
 
-Even for developers, remote attestation is a complex process that is difficult
-to understand and work with.  To make matters more complex, in our setting end
-users are expected to conduct remote attestation themselves.  We therefore made
-a careful effort to abstract away technical details.  A user wishing to remotely
-verify an enclave essentially asks herself ``Does the enclave that's exposed at
-a given URL run the source code that I just audited?''  We built a tool set that
-reduces the process to the running of a Makefile,\footnote{The source code is
-publicly available but we redacted the URL to remain anonymous.} e.g.:
+In general, we envision that remote attestation is handled transparently by
+client software, without involving the user.  In some cases however, users may
+wish to manually verify an enclave.  Even for developers, remote attestation is
+a complex process that is difficult to understand and work with.  To make
+matters more complex, in our setting end users are expected to conduct remote
+attestation.  We therefore made a careful effort to abstract away technical
+details.  A user wishing to remotely verify an enclave essentially asks herself
+``does the enclave that's exposed at a given URL run the source code that I just
+audited?''  We built a tool set that reduces the process to the running of a
+Makefile,\footnote{The source code is publicly available but we redacted the URL
+to remain anonymous.} i.e.:
 
 \begin{lstlisting}[numbers=none,basicstyle=\small\ttfamily]
 $ make verify CODE="/path/to/enclave/code/" \
               ENCLAVE="https://example.com/attest"
 \end{lstlisting}
 
-The first environment variable, \texttt{CODE}, points to the directory
-containing the source code that the enclave is supposedly running, and the user
-audited.  The second variable, \texttt{ENCLAVE}, points to the URL endpoint of
-the enclave that the user's client is connecting to.  When the user runs this
-command, the Makefile deterministically compiles the given source code to
-obtain its image ID, asks the enclave for an attestation document, verifies the
-document, and ensures that the attestation document is for the image ID that
-was compiled in the first step.  If all checks pass, the tool informs the user
-accordingly.
+The first argument, \texttt{CODE}, points to the directory containing the source
+code that the enclave is supposedly running, and the user audited.  The second
+variable, \texttt{ENCLAVE}, points to the URL endpoint of the enclave that the
+user's client is connecting to.  When the user runs this command, the Makefile
+deterministically compiles the given source code to obtain its image ID, asks
+the enclave for an attestation document, verifies the document, and ensures that
+the attestation document is for the image ID that was compiled in the first
+step.  If all checks pass, the tool informs the user accordingly.
 
 \subsubsection{Sharing Key Material}
 \label{sec:sync}
@@ -369,7 +372,7 @@ already-existing enclaves.  If there are none, the enclave knows that it is the
 with future enclaves.  If however it discovers other enclaves, the new enclave
 establishes a connection to another randomly-chosen enclave and initiates key
 synchronization.  Crucially, key material is only shared after \emph{mutual
-attestation}, i.e., the original and subsequent enclaves attest each other, and
+attestation}, i.e., the original and subsequent enclaves verify each other, and
 only exchange key material if remote attestation succeeds.  Key synchronization
 happens in three steps, as illustrated in Figure~\ref{fig:key-synchronization}.
 
@@ -416,36 +419,36 @@ happens in three steps, as illustrated in Figure~\ref{fig:key-synchronization}.
 \end{enumerate}
 
 % Security considerations.
-Needless to say, the security of key synchronization is paramount.  As a first
-layer of defense, synchronization should be configured to use a private network
-segment limited to inter-enclave communication, such as the internal network
-that is part of a Kubernetes cluster managing scaling for the application.
-Arbitrary hosts on the Internet are therefore unable to
-contact an enclave and request its key material.  The second layer of defense
-is the fact that an enclave has to provide a valid attestation document
-before the origin enclave reveals its key material.  As long as the origin
-enclave knows that an identical and authentic copy of itself is asking for key
-material, it will readily provide it.
+Needless to say, the security of key synchronization is paramount.  As an
+optional first layer of defense, synchronization should be configured to use a
+private network segment limited to inter-enclave communication, such as the
+internal network that is part of a Kubernetes cluster that is managing scaling
+for the application.  While optional, Kubernetes is an attractive component in
+our setting considering that enclaves are essentially compiled Docker images.
+The second and main layer of defense is the fact that an enclave has to provide
+a valid attestation document before the origin enclave reveals its key material.
+As long as the origin enclave knows that an identical and authentic copy of
+itself is asking for key material, it will readily provide it.
 
 \subsubsection{Side-channel Attacks}
 \label{sec:side-channels}
 
-The enclave's parent EC2 image cannot see \emph{what} clients submit but it can
-see \emph{how much} clients submit and \emph{how long} it takes the enclave to
-process data.  The EC2 image can exploit these side channels to learn more
-about the client's confidential information and computation.  While such side
-channels must be avoided, our framework is not the place to do so.  Instead, it
-is the application developer's responsibility to identify and address this class of
-attacks.  Section~\ref{sec:applications} introduces two applications and
-discusses side channel attacks in their respective setting.
+The enclave's parent EC2 host cannot see \emph{what} clients send to the enclave
+but it can see \emph{how much} clients send and \emph{how long} it takes the
+enclave to process data.  The EC2 host can exploit these side channels to learn
+more about the client's confidential information and computation.  While such
+side channels must be avoided, our framework is not the place to do so.
+Instead, it is the application developer's responsibility to identify and
+address this class of attacks.  Section~\ref{sec:applications} introduces two
+applications and discusses side channel attacks in their respective setting.
 
-Similarly, programming bugs in the enclave application are also out of scope for
-this work.  Memory corruption attacks may be more difficult to mount against
-enclave applications\footnote{The untrustworthy operating system (that may be
-under the attacker's control) is prohibited by hardware to read the enclave
-application's memory or registers in clear text, which forces the attacker to
-operate blindly.} but Lee et al. showed that it's possible, by adapting a
-return-oriented programming attack against SGX~\cite{Lee2017a}.
+Similarly out of scope are programming bugs in the enclave application.  Memory
+corruption bugs may be more difficult to exploit in an enclave
+application\footnote{The untrustworthy operating system (that may be under the
+attacker's control) is prohibited by hardware to read the enclave application's
+memory or registers in clear text, which forces the attacker to operate
+blindly.} but Lee et al. adapted a return-oriented programming attack against
+SGX to show that such attacks are practical~\cite{Lee2017a}.
 
 \subsubsection{Ingesting Secrets}
 \label{sec:secrets}
@@ -453,29 +456,27 @@ return-oriented programming attack against SGX~\cite{Lee2017a}.
 A key design requirement of our framework is that users can audit and verify the
 code that is running inside an enclave, which means that the service provider is
 unable to hide any software configuration from the user.  Service providers can
-work around that shortcoming by implementing HTTP handlers that take as input
+work around this shortcoming by implementing HTTP handlers that take as input
 arbitrary data, and use it to update the enclave's state.  Consider a system
 that takes as input client IP addresses, anonymizes them, and forwards the
 anonymized addresses to a back end (cf. \S~\ref{sec:pseudonymization}).  The
 service provider now wants to compare submitted IP addresses to a confidental
 deny list.  However, if the deny list is hard-coded in the freely available
-enclave application, it is readily visible to anyone.
+enclave application, it is readily visible to anyone.  The service provider can
+solve this problem by adding to the enclave application a new HTTP handler that
+takes as input the confidential data it seeks to protect from the users' eyes.
+Once the enclave is running, the service provider loads the confidential data
+at runtime, by calling the end point.  To prevent users from submitting bogus
+data, the endpoint could hard-code the service provider's public key and only
+accept data that carries a valid signature of the service provider's private
+key.
 
-To work around this shortcoming, the service provider can add a new HTTP handler
-that takes as input the confidential data it seeks to protect from the users'
-eyes.  Once the enclave is running, the service provider can load the
-confidential data at runtime, by calling the end point.  To prevent users from
-submitting bogus data, the endpoint could hard-code the service provider's
-public key and only accept data that carries a valid signature of the service
-provider's private key.
-
-The above technique for ingesting secrets into an enclave's runtime is
-flexible---so flexible, in fact, that the service provider could abuse it to
-ingest code at runtime, which would nullify the verifiability the enclave's
-verifiability requirement.  Vigilant users would never trust an enclave whose
-code can change at runtime.  We therefore argue that an HTTP handler for the
-purpose of injesting secrets must be constrained to a point that only data of a
-well-defined type can be injested.
+This technique for ingesting secrets into an enclave's runtime is flexible---so
+flexible, in fact, that the service provider could abuse it to ingest code at
+runtime, which would nullify the enclave's verifiability requirement.  Vigilant
+users would never trust an enclave whose code can change at runtime.  We
+therefore argue that an HTTP handler for the purpose of injesting secrets must
+be constrained to a point that only data of a well-defined type can be injested.
 
 \subsubsection{An Example}
 \label{sec:example}
@@ -485,16 +486,6 @@ application.  The code initializes a new enclave struct (line 16), followed by
 adding a handler that processes requests for \texttt{GET /hello-world} (line
 24).  Finally, the application starts the enclave using a function call that
 does not return (line 27).
-
-The configuration object (line 17) consists of four fields.  The first field
-determines the enclave's FQDN, which is required when obtaining an X.509
-certificate.  The port is listened on by the enclave via the VSOCK interface.
-It is the hosting EC2 instance's responsibility to forward incoming traffic to
-this port.  The third field determines if the enclave should use Let's Encrypt's
-ACME protocol to obtain a CA-signed certificate at runtime.
-The last flag instructs the framework to print debug information.  Note that
-this is only useful when the enclave is invoked in debug mode, which disables
-remote attestation.
 
 \begin{figure}[t]
 \begin{lstlisting}[language=go]
@@ -534,3 +525,13 @@ func main() {
   the string ``hello world'' in the response body (line 12).}
 \label{fig:hello-world}
 \end{figure}
+
+The configuration object (line 17) consists of four fields.  The first field
+determines the enclave's FQDN, which is required when obtaining an X.509
+certificate.  The port is listened on by the enclave via the VSOCK interface.
+It is the EC2 host's responsibility to forward incoming traffic to
+this port.  The third field determines if the enclave should use Let's Encrypt's
+ACME protocol to obtain a CA-signed certificate at runtime.
+The last flag instructs the framework to print debug information.  Note that
+this is only useful when the enclave is invoked in debug mode, which disables
+remote attestation.
