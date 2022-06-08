@@ -14,8 +14,8 @@ in languages other than Go, by taking advantage of a foreign function interface
 successfully moved a Rust code base into a Nitro enclave by implementing a
 lightweight, Go-based wrapper (in less than 200 lines of code, excluding our
 framework's code) that interacts with the Rust code via an FFI.\footnote{The
-code is publicly available but we don't link to it yet to preserve our
-anonymity.} Importantly, the compilation process is still reproducible as long
+code is available at: \url{https://github.com/brave-experiments/star-randsrv}.}
+Importantly, the compilation process is still reproducible as long
 as the Rust code's dependencies are pinned via Rust's Cargo tool chain.
 
 \subsection{IP Address Pseudonymizer}
@@ -163,20 +163,20 @@ shuffler, refer to the original PROCHLO paper~\cite[\S~3.3]{Bittau2017a}.
 
 As part of an unrelated research project, we were experimenting with private
 telemetry, and we therefore used our framework to re-implement the shuffler in
-approximately 1,000 lines of code.\footnote{The code is freely available but we
-omit a link to it to preserve our anonymity.}  Our implementation is a
-near-complete clone of the shuffler as it was proposed in the PROCHLO paper but
-for simplicity, we did not implement nested encryption~\cite[\S~3]{Bittau2017a}.
-Figure~\ref{fig:shuffler} shows that our shuffler takes as input confidential
-client measurements and enforces a configurable $k$-anonymity threshold on those
-measurements.  Every $t$ seconds, the shuffler discards messages that don't meet
-the threshold and forwards the remaining messages to its back end.\footnote{The
-variable $t$ depends on the rate of incoming measurements.  Reasonable values
-can range from hours (if the shuffler constantly sees a high rate of incoming
-measurements) to days.} Before clients agree to sending their sensitive
-measurements to the shuffler, they audit its source code and perform remote
-attestation, to convince themselves that their measurements are processed by an
-authentic enclave.
+approximately 1,000 lines of code.\footnote{The code is available at:
+\url{https://github.com/brave-experiments/p3a-shuffler}.} Our implementation is
+a near-complete clone of the shuffler as it was proposed in the PROCHLO paper
+but for simplicity, we did not implement nested
+encryption~\cite[\S~3]{Bittau2017a}.  Figure~\ref{fig:shuffler} shows that our
+shuffler takes as input confidential client measurements and enforces a
+configurable $k$-anonymity threshold on those measurements.  Every $t$ seconds,
+the shuffler discards messages that don't meet the threshold and forwards the
+remaining messages to its back end.\footnote{The variable $t$ depends on the
+rate of incoming measurements.  Reasonable values can range from hours (if the
+shuffler constantly sees a high rate of incoming measurements) to days.} Before
+clients agree to sending their sensitive measurements to the shuffler, they
+audit its source code and perform remote attestation, to convince themselves
+that their measurements are processed by an authentic enclave.
 
 \begin{figure}[t]
 \centering

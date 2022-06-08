@@ -175,10 +175,12 @@ which allows for the automated issuance of certificates.  To do so, it first
 connects to Let's Encrypt's infrastructure via a SOCKS proxy (step~\ding{203}).
 Let's Encrypt does not publish its endpoints' IP addresses, which is why we
 cannot use point-to-point connections and have to rely on the flexibility of a
-SOCKS proxy.\footnote{We implemented both the SOCKS proxy and the TCP proxy, and
-make both available under a free license.}  Let's Encrypt then verifies that the
-enclave can answer queries on behalf of the requested domain name, and issues a
-certificate to the enclave (step~\ding{204}).
+SOCKS proxy.\footnote{Our SOCKS proxy is available at
+\url{https://github.com/brave-intl/bat-go/tree/nitro-utils/nitro-shim/tools/socksproxy}
+and our TCP proxy is available at
+\url{https://github.com/brave-experiments/viproxy}.} Let's Encrypt then verifies
+that the enclave can answer queries on behalf of the requested domain name, and
+issues a certificate to the enclave (step~\ding{204}).
 
 Clients establish end-to-end encrypted TLS sessions to the enclave with the help
 of a TCP proxy on the EC2 host that translates between AF\_INET (traditional,
@@ -324,8 +326,8 @@ attestation.  We therefore made a careful effort to abstract away technical
 details.  A user wishing to remotely verify an enclave essentially asks herself
 ``does the enclave that's exposed at a given URL run the source code that I just
 audited?''  We built a tool set that reduces the process to the running of a
-Makefile,\footnote{The source code is publicly available but we redacted the URL
-to remain anonymous.} i.e.:
+Makefile,\footnote{The source code is available at:
+\url{https://github.com/brave-experiments/verify-enclave}.} i.e.:
 
 \begin{lstlisting}[numbers=none,basicstyle=\small\ttfamily]
 $ make verify CODE="/path/to/enclave/code/" \
