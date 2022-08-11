@@ -6,7 +6,7 @@ deps = paper.tex sections/*.tex sections/figures/*.tex references.bib
 all: paper
 
 paper: $(deps)
-	rubber --pdf paper.tex
+	rubber --pdf paper
 
 clean:
-	rm -f $(doc) paper.{aux,bbl,bcf,blg,dvi,log,out,run.xml}
+	rubber --clean paper
