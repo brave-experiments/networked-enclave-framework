@@ -12,7 +12,7 @@ While our framework is written in Go, developers can build enclave applications
 in languages other than Go, by taking advantage of a foreign function interface
 (FFI) that allows Go code to invoke functions in other languages.  We
 successfully moved a Rust code base into a Nitro enclave by implementing a
-lightweight, Go-based wrapper (in less than 200 lines of code, excluding our
+lightweight, Go-based wrapper (in less than 400 lines of code, excluding our
 framework's code) that interacts with the Rust code via an FFI.\footnote{The
 code is available at: \url{https://github.com/brave-experiments/star-randsrv}.}
 Importantly, the compilation process is still reproducible as long
@@ -127,7 +127,7 @@ implemented.  The implementation details of both the back end and its anti-fraud
 logic are beyond the scope of this paper.
 
 \paragraph{Implementation}
-Our pseudonymization service counts approximately 1,000 lines of code, including
+Our pseudonymization service counts approximately 1,100 lines of code, including
 comments and tests.  It is important to keep the source code small for both
 security and transparency: a large code base is more likely to have
 security-critical bugs and is also more difficult for users to audit.

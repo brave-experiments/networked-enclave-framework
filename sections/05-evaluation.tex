@@ -24,16 +24,17 @@ have been plaguing SGX.  If we assume that Nitro enclaves are acceptably
 secure, the next critical layer is our software framework.
 
 A significant security aspect of our framework is its size; it is well
-understood that complexity is the enemy of security.  Our framework counts less
-than 700 lines of code and has four direct dependencies that are not maintained
-by either us or the Go project.\footnote{The dependencies are chi~\cite{chi}
-(provides an HTTP request router), nsm~\cite{nsm} (provides an interface to
-interact with the Nitro hypervisor), vsock~\cite{vsock} (provides an API for the
-VSOCK address family), and tenus~\cite{tenus} (provides an API to configure
-Linux's networking devices).}  Four is worse than zero, but is still manageable
-and reasonably easy to audit in its entirety.  We believe that our choice of
-using Go and the deliberately small trusted computing base greatly reduces---but
-does not eliminate!---the attack surface.
+understood that complexity is the enemy of security.  Excluding unit tests, our
+framework counts less than 1,300 lines of code and has four direct dependencies
+that are not maintained by either us or the Go project.\footnote{The
+dependencies are chi~\cite{chi} (provides an HTTP request router),
+nsm~\cite{nsm} (provides an interface to interact with the Nitro hypervisor),
+vsock~\cite{vsock} (provides an API for the VSOCK address family), and
+tenus~\cite{tenus} (provides an API to configure Linux's networking devices).}
+Four is worse than zero, but is still manageable and reasonably easy to audit in
+its entirety.  We believe that our choice of using Go and the deliberately small
+trusted computing base greatly reduces---but does not eliminate!---the attack
+surface.
 
 The highest layer in the software stack is the enclave application itself.  The
 biggest security threat are side channel attacks and programming bugs---both
