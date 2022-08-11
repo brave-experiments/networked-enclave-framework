@@ -432,6 +432,13 @@ a valid attestation document before the origin enclave reveals its key material.
 As long as the origin enclave knows that an identical and authentic copy of
 itself is asking for key material, it will readily provide it.
 
+In their 2022 paper, Chen and Zhang present MAGE, a protocol that allows
+enclaves to mutually verify each other without relying on a trusted third
+party~\cite{Chen2022a}.  We could have built key synchronization on top of MAGE
+but found that our setting is considerably simpler because only \emph{identical}
+enclaves request each other's key material, eliminating the need for the more
+flexible---but also more complex---MAGE protocol.
+
 \subsubsection{Side-channel Attacks}
 \label{sec:side-channels}
 
