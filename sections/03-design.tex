@@ -516,14 +516,12 @@ func main() {
     enclave := nitro.NewEnclave(
         &nitro.Config{
             FQDN:    "example.com",
-            Port:    8080,
+            Port:    8443,
             UseACME: true,
             Debug:   false,
         },
     )
-    enclave.AddRoute(http.MethodGet,
-                     "/hello-world",
-                     handler)
+    enclave.AddRoute(http.MethodGet, "/hello-world", handler)
     if err := enclave.Start(); err != nil {
         log.Fatalf("Terminated: %v", err)
     }
