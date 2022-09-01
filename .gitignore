@@ -8,3 +8,6 @@ paper.out
 paper.pdf
 paper.run.xml
 paper.rubbercache
+
+code/ffi-perf-eval/include/
+code/ffi-perf-eval/target/

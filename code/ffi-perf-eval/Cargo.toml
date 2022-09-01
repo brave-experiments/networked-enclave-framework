@@ -1,0 +1,12 @@
+[package]
+name = "rust-ffi"
+version = "0.1.0"
+authors = ["Ralph Giles <rgiles@brave.com>"]
+description = "C API wrapper for Rust code"
+edition = "2018"
+
+[lib]
+crate-type = [ "staticlib" ]
+
+[build-dependencies]
+cbindgen = "0.20.0"
