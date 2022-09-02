@@ -75,6 +75,37 @@ able to obtain approximately 900 documents per second, with each request taking
 a median of one millisecond ($s = 0.3\,\text{ms}$) to fetch the attestation
 document.
 
+\subsection{FFI Overhead}
+\label{sec:ffi-overhead}
+
+While our framework is built in Go, one can use other programming languages to
+implement enclave applications, and call that code using a foreign function
+interface (FFI).  Naturally, an FFI involves overhead.  To quantify the
+overhead, we built a Rust and Python library which exposes a single, empty
+function which takes no arguments and returns nothing.  We then wrote the same
+function in native Go to serve as baseline and used Go's built-in benchmarking
+functionality to compare native Go to the Rust and Python FFI.  For a fair
+comparison to Python, we first compile our Python code to byte code and start
+the Python interpreter before the benchmark.  Figure~\ref{fig:ffi-overhead}
+illustrates the results as determined on an Intel Core i7-10710U CPU at 1.10
+GHz.
+
+\begin{figure}[t]
+    \centering
+    \begin{tabular}{l r r}
+    \toprule
+      Setup & Nanosec. & Overhead \\
+    \midrule
+      Native Go & 0.25 & 1x \\
+      Rust FFI & 51.00 & 204x \\
+      Python FFI & 292.00 & 1,168x \\
+    \bottomrule
+    \end{tabular}
+    \caption{The overhead of calling a native Go function versus calling the
+    same function in Rust and Python code via a foreign function interface.}
+    \label{fig:ffi-overhead}
+\end{figure}
+
 \subsection{Application Latency and Throughput}
 \label{sec:end-to-end}
 
