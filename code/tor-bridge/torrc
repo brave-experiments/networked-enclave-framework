@@ -1,0 +1,9 @@
+RunAsDaemon 1
+ORPort 9001
+BridgeRelay 1
+ControlPort 127.0.0.1:9002
+Log notice file /tor.log
+ContactInfo phw@nymity.ch
+Nickname EnclaveTestBridge
+BridgeDistribution none
+SocksPort 0
