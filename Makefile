@@ -6,7 +6,7 @@ deps = paper.tex sections/*.tex sections/figures/*.tex references.bib
 all: paper
 
 paper: $(deps)
-	rubber --pdf paper
+	latexmk -pdflatex -quiet paper.tex
 
 clean:
-	rubber --clean paper
+	latexmk -C
