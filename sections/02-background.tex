@@ -5,8 +5,10 @@ This section provides an overview of secure enclaves in general
 (\S~\ref{sec:enclaves}) and AWS's implementation in particular
 (\S~\ref{sec:nitro}).
 
-\subsection{Secure Enclaves}
+\subsection{Secure enclaves}
 \label{sec:enclaves}
+
+\cite{Bean2022a}
 
 Computers operate on data that is at rest, in transit, and in use.  We have
 well-understood and practical ways to protect data at rest (e.g., full disk
@@ -45,8 +47,99 @@ situations where a system must process sensitive data while simultaneously be
 shielded off from the complexity (and subsequent insecurity) of general-purpose
 computers.
 
-\subsection{AWS Nitro Enclaves}
+\subsection{AWS Nitro enclaves}
 \label{sec:nitro}
+
+* nitro cards are purpose-built hardware from amazon
+* firmware also built by amazon
+* nitro cards are physically connected to host system main board via pcie; but
+logically isolated
+* primary nitro card is the nitro controller which provides the hardware root of
+trust for the overall system.
+  - secure boot
+
+
+% What is AWS Nitro.
+In YYYY, Amazon introduced the AWS Nitro system with the goal of improving
+the performance and security of EC2 as well as accelerating innovation.
+The Nitro system consists of a lightweight software hypervisor and
+dedicated hardware cards that handle offloading for storage and networking,
+deploy firmware updates, provide a hardware-based root of trust, and several
+other features---all of which used to be done in software.
+
+* nitro controller
+  - coordinates all cards
+  - provides hardware root of trust
+    + boots from private SSD; memory safety of initial boot code formally verified~\cite{Cook2018a}
+  - coordinates with nitro hypervisor
+  - coordinates with nitro security chip
+
+* nitro hypervisor
+  - kvm-based
+  - custom MM
+  - awaits commands from nitro controller
+  - not connected to the network
+  - no dom0
+
+* nitro security chip
+  - traps i/o to non-volatile storage
+  - hardware-based root of trust
+
+
+% What are Nitro enclaves.
+The Nitro system serves as the underlying foundation of Nitro enclaves.
+An enclave is a virtual machine whose hardware resources are physically
+isolated.
+
+
+* nitro requires kernel module
+
+
+
+Hypervisor does not do anything security-related.
+
+\cite{enclave-talk}
+
+
+
+
+% What is AWS Nitro.
+* hardware offload for ebs storage and networking
+* firmware updates
+* powers all ec2 instance types
+* hardware root of trust
+
+three core components:
+* Nitro Cards I/O Acceleration
+* Nitro Security Chip
+* Nitro Hypervisor
+
+% security
+* hardware-based root of trust
+
+% PCR values.
+
+\begin{figure}[t]
+    \centering
+    \begin{tabular}{r l}
+    \toprule
+      PCR \# & SHA-384 hash of\ldots \\
+    \midrule
+      0 & Enclave image file \\
+      1 & Linux kernel \\
+      2 & Application \\
+      3 & IAM role assigned to the host instance \\
+      4 & Instance ID of the host instance \\
+      8 & Enclave image file signing certificate \\
+    \bottomrule
+    \end{tabular}
+    \caption{The available platform configuration registers (PCRs) and the
+    meaning behind them.}
+    \label{fig:pcr}
+\end{figure}
+
+See Figure~\ref{fig:pcr} for PCR values~\cite{pcrs}.
+
 
 In this work, we build on top of AWS's Nitro enclaves.  Nitro enclaves are
 isolated and constrained virtual machines that run alongside an EC2 instance

@@ -33,10 +33,10 @@
   % New enclave asks for keys.
   \draw [-latex] (enclave2.east) -- ([yshift=-5pt]enclave1.west)
         node [midway, fill=white, align=center]
-        {\emph{Request keys}\\$A_{n}(\textrm{nonce}_o\ ||\ K_n\ ||\ \textrm{nonce}_n$)};
+        {\emph{Request keys}\\$A_{n}(\textrm{nonce}_o, K_n, \ \textrm{nonce}_n$)};
 
   \draw [latex-] ([yshift=-30pt]enclave2.east) -- ([yshift=-25pt]enclave1.west)
         node [midway, fill=white, align=center]
-        {$A_{o}(\textrm{nonce}_n\ ||\ \textsf{Enc}(K_n, s))$};
+        {$A_{o}(\textrm{nonce}_n, \textsf{Enc}(K_n, s))$};
 
 \end{tikzpicture}

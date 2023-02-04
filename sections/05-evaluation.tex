@@ -5,15 +5,19 @@ We evaluate our enclave framework with respect to
 security (\S~\ref{sec:security}),
 financial cost (\S~\ref{sec:cost}), and performance.  As for performance, we
 study the rate at which one can generate
-attestation documents (\S~\ref{sec:attestation-performance}) and
-measure end-to-end request latency and throughput (\S~\ref{sec:end-to-end}).
+attestation documents (\S~\ref{sec:attestation-performance}),
+application latency (\S~\ref{sec:latency}),
+and application throughput (\S~\ref{sec:throughput}).
 
-\subsection{Security Considerations}
+\subsection{Security considerations}
 \label{sec:security}
 
+\phw{Need to make this more rigorous.}
+
 There are three key components to the overall security of enclave applications;
-(\emph{i}) Amazon's Nitro enclave system itself, (\emph{ii}) our framework, and
-(\emph{iii}) the application that runs on top of our framework.
+(i) Amazon's Nitro enclave system itself,
+(ii) our framework, and
+(iii) the application that runs on top of our framework.
 
 The very foundation of our framework's security lies in the soundness of the
 design of Nitro enclaves.  While Amazon published the conceptual design, the
@@ -45,7 +49,7 @@ intentional, i.e., the service provider may deliberately introduce bugs that
 leak sensitive information.  From the user's point of view, eternal vigilance
 is therefore the price of security.
 
-\subsection{Financial Cost}
+\subsection{Financial cost}
 \label{sec:cost}
 
 Nitro enclaves do not incur any extra cost in addition to what the underlying
@@ -53,7 +57,7 @@ EC2 host costs---they can be considered a ``free'' extension to EC2.  Nitro
 enclaves are however only available for select types of EC2 instances because
 they require their own CPU and a minimum amount of memory, and those instance
 types are pricier than the lowest tier that AWS offers.
-
+%
 We are currently working on deploying the IP address pseudonymization prototype
 that we introduced in Section~\ref{sec:pseudonymization}.  We estimate that our
 enclave is going to have to handle an average of 5,000 requests per minute,
@@ -61,7 +65,7 @@ coming from more than ten million clients.  Our test deployment uses a single
 c5.xlarge EC2 host in the U.S. East region which costs \$0.17 per hour to
 operate, amounting to approximately \$125 per month.
 
-\subsection{Attestation Documents}
+\subsection{Attestation documents}
 \label{sec:attestation-performance}
 
 The fetching of attestation documents is a critical part of our framework's
@@ -72,42 +76,11 @@ each attestation document, we asked the hypervisor to include an incrementing
 nonce, to avoid any speedups by caching.  We performed our measurements on a
 c5.xlarge EC2 host which comes with four CPUs and eight GiB of memory.  We were
 able to obtain approximately 900 documents per second, with each request taking
-a median of one millisecond ($s = 0.3\,\text{ms}$) to fetch the attestation
+a median of one millisecond ($s = 0.3\,\text{ms}$) to obtain an attestation
 document.
 
-\subsection{FFI Overhead}
-\label{sec:ffi-overhead}
-
-While our framework is built in Go, one can use other programming languages to
-implement enclave applications, and call that code using a foreign function
-interface (FFI).  Naturally, an FFI involves overhead.  To quantify the
-overhead, we built a Rust and Python library which exposes a single, empty
-function which takes no arguments and returns nothing.  We then wrote the same
-function in native Go to serve as baseline and used Go's built-in benchmarking
-functionality to compare native Go to the Rust and Python FFI.  For a fair
-comparison to Python, we first compile our Python code to byte code and start
-the Python interpreter before the benchmark.  Figure~\ref{fig:ffi-overhead}
-illustrates the results as determined on an Intel Core i7-10710U CPU at 1.10
-GHz.
-
-\begin{figure}[t]
-    \centering
-    \begin{tabular}{l r r}
-    \toprule
-      Setup & Nanosec. & Overhead \\
-    \midrule
-      Native Go & 0.25 & 1x \\
-      Rust FFI & 51.00 & 204x \\
-      Python FFI & 292.00 & 1,168x \\
-    \bottomrule
-    \end{tabular}
-    \caption{The overhead of calling a native Go function versus calling the
-    same function in Rust and Python code via a foreign function interface.}
-    \label{fig:ffi-overhead}
-\end{figure}
-
-\subsection{Application Latency and Throughput}
-\label{sec:end-to-end}
+\subsection{Application latency}
+\label{sec:latency}
 
 Next, we set out to measure the networking latency of the critical path, as
 illustrated in Figure~\ref{fig:stress-test}.  In particular, we test the
@@ -121,8 +94,7 @@ much latency each component in our data flow adds:
     \centering
     \input{sections/figures/stress-test}
     \caption{Our stress test tool tests the performance of our critical path,
-    consisting of the TCP proxy, the VSOCK interface, and Go's HTTP stack in
-    the enclave application.}
+    consisting of the TCP proxy, the VSOCK interface, and \tool{}.}
     \label{fig:stress-test}
 \end{figure}
 
@@ -148,15 +120,14 @@ in the latency that is caused by the components \emph{before} a request reaches
 the enclave application.
 
 To simulate clients, we use the HTTP load test tool Baton~\cite{baton}.  We run
-Baton on the parent EC2 host and instruct it to send as many requests to the
-TCP proxy as possible within 30 seconds, using 50 concurrent threads.  We had to
-patch Baton's source code to add VSOCK support (to be able to send requests
-directly to the enclave via the VSOCK interface) and to log latency
-percentiles.  Note that our measurements constitute a \emph{lower bound} of the
-latency that is achievable.  Real-world applications will exhibit higher latency
-because clients send their requests over the Internet (which adds considerable
-networking latency) and the enclave application is likely to be more complex
-(which adds computational latency).
+Baton on the parent EC2 host and instruct it to send 100,000 requests using 10
+concurrent threads.  We had to patch Baton's source code to add VSOCK support
+(to be able to send requests directly to the enclave via the VSOCK interface)
+and to log latency percentiles.  Note that our measurements constitute a
+\emph{lower bound} of the latency that is achievable.  Real-world applications
+will exhibit higher latency because clients send their requests over the
+Internet (which adds considerable networking latency) and the enclave
+application is likely to be more complex (which adds computational latency).
 
 Figure~\ref{fig:latency-msmts} illustrates the results for our three test
 setups.  The full pipeline is able to sustain 7,500 requests per second, with a
@@ -167,32 +138,68 @@ again nearly doubles the number of requests, reaching 27,900 per second, with a
 mean latency of only 3.2 milliseconds.  Figure~\ref{fig:latency-cdf} shows the
 empirical CDF of the same latency measurements for our three test setups.
 
-\begin{figure}[t]
+\begin{table}[t]
+    \centering
+    \begin{tabular}{l r r}
+    \toprule
+      Setup & C $\rightarrow$ S (Gbits/sec) & S $\rightarrow$ C (Gbit/sec) \\
+    \midrule
+      Docker          & 26.0 & 28.9 \\
+      Enclave         &  3.6 &  3.2 \\
+      Nitriding(-nrp) &  0.3 &  1.1 \\
+    \bottomrule
+    \end{tabular}
+    \caption{The TCP throughput measurements when running iperf3 in Docker,
+      inside an enclave, or inside an enclave using nitriding.}
+    \label{fig:iperf3}
+\end{table}
+
+\begin{table}[t]
     \centering
     \begin{tabular}{l r r r}
     \toprule
-      Setup & Reqs/sec & Mean lat. (ms) & Max lat. (ms) \\
+      Setup & Reqs/sec & \makecell[r]{Mean latency\\(ms)} &
+                         \makecell[r]{Max latency\\(ms)} \\
     \midrule
-    Full & 7,500 & 12.7 & 56.0 \\
-    No proxy & 14,100 & 6.5 & 52.0 \\
-    Direct & 27,900 & 3.2 & 50.0 \\
+      Docker        & 19,321 &  0.12 & 15 \\
+      Enclave       & 16,466 &  0.06 &  9 \\
+      Nitriding-nrp &  2,288 &  3.74 & 53 \\
+      Nitriding     &  1,214 &  7.63 & 63 \\
     \bottomrule
     \end{tabular}
     \caption{Using 100 concurrent requests and 100,000 requests in total.}
     \label{fig:latency-msmts}
-\end{figure}
+\end{table}
 
+% \begin{figure}[t]
+%     \centering
+%     \begin{tabular}{l r r r}
+%     \toprule
+%       Setup & Reqs/sec & Mean lat. (ms) & Max lat. (ms) \\
+%     \midrule
+%     Full     &  7,500 & 12.7 & 56.0 \\
+%     No proxy & 14,100 &  6.5 & 52.0 \\
+%     Direct   & 27,900 &  3.2 & 50.0 \\
+%     \bottomrule
+%     \end{tabular}
+%     \caption{Using 100 concurrent requests and 100,000 requests in total.}
+%     \label{fig:latency-msmts}
+% \end{figure}
 
 \begin{figure}[t]
     \centering
-    \input{sections/figures/latency-cdf}
+    \input{diagrams/latency-cdf/latency-cdf.tex}
     \label{fig:latency-cdf}
-    \caption{The empirical CDF of the latency distributions of our three test setups.}
+    \caption{The empirical CDF of the latency distributions of our three test
+      setups.}
 \end{figure}
+
+\subsection{Application throughput}
+\label{sec:throughput}
 
 Next, we measure the throughput that we can achieve over the VSOCK interface.
 To that end, we use a VSOCK-enabled fork of the iperf3 performance measurement
-tool~\cite{iperf-vsock}.  iperf3 measures the throughput of a networking link
+tool in git commit ~\cite{iperf-vsock}.  iperf3 measures the throughput of a networking link
 using a client/server model.  In our experiment, we start an iperf3 server
 instance inside the enclave and the corresponding client instance on the parent
 EC2 host.\footnote{The command that we ran on the server was
@@ -230,3 +237,8 @@ demanding and latency-sensitive networking applications.
 %
 %     \item Discuss operational issues and gotchas.
 % \end{itemize}
+
+\subsection{Synchronization latency}
+\label{sec:synclatency}
+
+\phw{Measure how fast enclaves can sync their key material.}

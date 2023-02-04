@@ -1,12 +1,12 @@
-\begin{tikzpicture}[node distance=20pt] % Reduce default distance to save space.
+\begin{tikzpicture}[node distance=20pt]
   \node [draw,
-         label={[anchor=north]above:EC2 host},
+         label=EC2 parent,
          minimum height=100pt,
          align=center,
          minimum width=60pt] (ec2) {};
 
   \node [draw,
-         label={[anchor=north]above:Enclave},
+         label=Enclave,
          right=0pt of ec2,
          fill=black!10,
          minimum height=100pt,
@@ -19,34 +19,42 @@
 
   \node [draw,
          align=center,
+         minimum height=25pt,
          left=of ec2.east] (proxy) {Proxy};
-
 
   \node[draw,
         align=center,
         fill=white,
+        minimum height=25pt,
+        yshift=-5pt,
+        xshift=15pt,
+        above=of enclave.south] (app) {App.};
+
+  \node[draw,
+        align=center,
+        fill=white,
+        minimum height=25pt,
         xshift=-10pt,
         right=of ec2.east] (tap) {tap};
 
   \node[draw,
         align=center,
         fill=white,
-        yshift=10pt,
-        right=of tap.north east] (nitriding) {Nitriding};
+        minimum height=25pt,
+        yshift=-5pt,
+        above=of app.north] (nitriding) {Nitriding};
 
-  \node[draw,
-        align=center,
-        fill=white,
-        below=of nitriding.south] (app) {App.};
 
   \node [draw,
          left=of ec2.west] (letsencrypt) {Let's Encrypt};
 
   \node [draw,
+         minimum height=16pt,
          above=of letsencrypt] (backend) {Back end};
 
   \node [draw,
-         below=of letsencrypt] (client) {Client};
+         below=of letsencrypt,
+         minimum height=16pt] (client) {Client};
 
   \node [right,
          align=center,
@@ -55,25 +63,25 @@
         {\footnotesize \color{gray} VSOCK\\\footnotesize \color{gray} interface};
 
   % Application asks the hypervisor for randomness.
-  \draw[-latex, densely dashdotted] (app.south) -- ([xshift=51pt]hypervisor.north)
-      node [midway, fill=white, circle, inner sep=-2pt] {\ding{202}};
+  \draw[-latex] (app.south) -- ([xshift=45pt]hypervisor.north)
+      node [midway, fill=white, circle, inner sep=0pt] {\ding{202}};
 
   % Nitriding talking to Let's Encrypt.
-  \draw[latex-latex, densely dotted] ([yshift=5pt]nitriding.west) -- ([yshift=5pt]tap.east)
-        node [midway, fill=white, circle, inner sep=-2pt] {\ding{203}};
+  \draw[latex-latex, densely dotted] ([yshift=6pt]nitriding.west) -- ([yshift=3pt]tap.east)
+        node [midway, fill=white, circle, inner sep=0pt] {\ding{203}};
   \draw[latex-latex, densely dotted] (tap.west) -- (proxy.east);
   \draw[latex-latex, densely dotted] (proxy.west) -- (letsencrypt.east);
 
   % Clients talking to the application.
   \draw[-latex] (client.east) -- ([yshift=-5pt]proxy.west)
-        node [midway, fill=white, circle, inner sep=-2pt] {\ding{204}};
-  \draw[-latex] ([yshift=-5pt]proxy.east) -- ([yshift=-5pt]tap.west);
-  \draw[-latex] (tap.east) -- ([yshift=-5pt]nitriding.west);
+        node [midway, fill=white, circle, inner sep=0pt] {\ding{204}};
+  \draw[-latex] ([yshift=-5pt]proxy.east) -- ([yshift=-3pt]tap.west);
+  \draw[-latex] (tap.east) -- ([yshift=-6pt]nitriding.west);
   \draw[-latex] (nitriding.south) -- (app.north);
 
   % Application talking to backend.
-  \draw[-latex, densely dashed] (app.west) -- ([yshift=-5pt]tap.east)
-        node [midway, fill=white, circle, inner sep=-2pt] {\ding{205}};
-  \draw[-latex, densely dashed] ([yshift=5pt]tap.west) -- ([yshift=5pt]proxy.east);
+  \draw[-latex, densely dashed] (app.west) -- ([yshift=-3pt]tap.east)
+        node [midway, fill=white, circle, inner sep=0pt] {\ding{205}};
+  \draw[-latex, densely dashed] ([yshift=3pt]tap.west) -- ([yshift=5pt]proxy.east);
   \draw[-latex, densely dashed] ([yshift=5pt]proxy.west) -- (backend.east);
 \end{tikzpicture}

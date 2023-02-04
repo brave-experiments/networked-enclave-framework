@@ -1,10 +1,9 @@
 \documentclass[letterpaper,twocolumn,10pt]{article}
 
-\usepackage{hyperref} % For clickable links; need to load this before usenix.
-\usepackage{usenix-2020-09}
-
+\usepackage{hyperref} % For clickable links.  Need to load this before usenix.
+\usepackage{usenix-2020-09} % Our Usenix template.
+\usepackage{subcaption} % For squeezing multiple sub-figures into a figure.
 \usepackage{booktabs} % For nicely-typeset tables.
-\usepackage{xspace}
 \usepackage{tikz} % For self-contained diagrams.
 \usepackage{amsmath} % For the 'align' environment.
 \usepackage[scaled=0.8]{beramono} % For a pleasant monospace font.
@@ -12,32 +11,37 @@
 \usepackage{balance} % For balanced references on the last page.
 \usepackage{todonotes} % For pretty todos in the paper.
 \usepackage{pifont} % For dingbats symbols.
-
-
-\usepackage[maxbibnames=4, sorting=none]{biblatex} % For more flexible references.
+\usepackage[maxbibnames=4, sorting=none, backref=true]{biblatex} % For more flexible references.
+\usepackage{makecell} % For linebreaks in table cells.
 
 \definecolor{todocolor}{HTML}{FFA0A0}
-\newcommand{\phw}[1]{\todo[inline,color = todocolor]{\textbf{Philipp:} #1}\xspace}
+\newcommand{\phw}[1]{\todo[inline,color = todocolor]{\textbf{Philipp:} #1}}
+\newcommand{\tool}{nitriding}
+\newcommand{\Tool}{Nitriding}
+\urlstyle{rm}
 
-%\renewcommand*\familydefault{\ttdefault} % Use Beramono instead of our default monospace font.
 \usetikzlibrary[shapes,arrows,positioning,arrows.meta,calc,fit]
 
-\definecolor{darkblue}{rgb}{0,0,0.5}
 \hypersetup{
-  pdftitle={A Framework for Building Secure, Scalable, Networked Enclaves},
-  pdfauthor={Philipp Winter, Ralph Giles, Alex Davidson, and Gonçalo Pestana},
-  pdfkeywords={security, privacy, framework, enclave},
+  pdftitle={Nitriding: A tool kit for building secure, scalable, networked enclaves},
+  pdfauthor={
+    Philipp Winter,
+    Ralph Giles,
+    Moritz Schafhuber,
+    Alex Davidson,
+    and
+    Gonçalo Pestana},
+  pdfkeywords={security, privacy, networking, enclave},
   colorlinks=true,
-  urlcolor=darkblue,
-  linkcolor=darkblue,
-  citecolor=darkblue,
+  urlcolor=gray,
+  linkcolor=gray,
+  citecolor=gray,
 }
 
 \lstset{
   numberstyle=\footnotesize\color{gray},
   basicstyle=\footnotesize\ttfamily,
-  stringstyle=\color{Mahogany},
-  keywordstyle=\color{MidnightBlue}\bfseries,
+  stringstyle=\color{gray},
   breakatwhitespace=false,
   breaklines=true,
   captionpos=b,
@@ -54,13 +58,16 @@
 
 \begin{document}
 
-\title{A Framework for Building Secure, Scalable, Networked Enclaves}
+\title{\Large \bf Nitriding: A tool kit for building\\secure, scalable, networked enclaves}
 
 \author{
   {\rm Philipp Winter} \\
   Brave Software
   \and
   {\rm Ralph Giles} \\
+  Brave Software
+  \and
+  {\rm Moritz Schafhuber} \\
   Brave Software
   \and
   {\rm Alex Davidson} \\
@@ -72,8 +79,6 @@
 
 \maketitle
 
-% As a general rule, do not put math, special symbols or citations
-% in the abstract
 \input{sections/00-abstract}
 \input{sections/01-introduction}
 \input{sections/02-background}
@@ -82,7 +87,8 @@
 \input{sections/05-evaluation}
 \input{sections/06-limitations}
 \input{sections/07-related-work}
-\input{sections/97-resources}
+\input{sections/08-conclusion}
+\input{sections/98-availability}
 
 \balance
 \printbibliography

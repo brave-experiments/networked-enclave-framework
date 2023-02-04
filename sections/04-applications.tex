@@ -1,25 +1,204 @@
 \section{Applications}
 \label{sec:applications}
 
-We demonstrate the practicality of our framework by building two applications on
-top of it.  First, in a novel system that pseudonymizes client IP addresses for
-anti-fraud (\S~\ref{sec:pseudonymization}); second, to implement the shuffler
-component that is part of Bittau et al.'s PROCHLO paper~\cite{Bittau2017a}
-(\S~\ref{sec:shuffler}).  In both cases, we had to overcome minor obstacles but
-found that our framework greatly facilitated the deployment of enclave code.
+We demonstrate the practicality \tool{} by building two applications on top of
+it, each a research contribution in its own right.  First, we run a Tor bridge
+inside an enclave (\S~\ref{sec:tor-bridge}), which mitigates several classes of
+attacks that the Tor network has struggled with in the past.  Second, we design
+an IP address tokenization system (\S~\ref{sec:tokenization}) that allows a
+service provider to anonymize client IP addresses (e.g., for anti-fraud
+purposes) without ever seeing plain IP addresses.
 
-While our framework is written in Go, developers can build enclave applications
-in languages other than Go, by taking advantage of a foreign function interface
-(FFI) that allows Go code to invoke functions in other languages.  We
-successfully moved a Rust code base into a Nitro enclave by implementing a
-lightweight, Go-based wrapper (in less than 400 lines of code, excluding our
-framework's code) that interacts with the Rust code via an FFI.\footnote{The
-code is available at: \url{https://github.com/brave-experiments/star-randsrv}.}
-Importantly, the compilation process is still reproducible as long
-as the Rust code's dependencies are pinned via Rust's Cargo tool chain.
+\subsection{Verifiable configuration transparency}
+\label{sec:vct}
 
-\subsection{IP Address Pseudonymizer}
-\label{sec:pseudonymization}
+Service providers frequently outsource their infrastructure to third-party
+providers, e.g., HTTP reverse proxies that handle the bulk of client request.
+The way these providers are configured can impact user privacy.  For example, a
+service provider may configure a third-party reverse proxy to strip client IP
+addresses before requests are forwarded to the servers that are controlled by
+the service provider.  How can the service provider prove to users that it
+configured the reverse proxy correctly?  We built an enclave application that
+makes it possible for users to inspect the service provider's configuration with
+verifiable guarantees.
+
+The idea, illustrated in Figure~\ref{fig:vct}, consists of a lightweight enclave
+application whose sole purpose is to query the API of the third-party
+infrastructure provider.  We built our proof-of-concept implementation for
+Cloudflare but the code can easily be adapted to support other providers.
+Cloudflare's API endpoint however requires a confidential bearer token for
+authentication and a semi-confidential zone ID~\cite{spectrum-config}.  These
+two values cannot be hard-coded in the (public) source code of the enclave
+application.  We therefore add a Web server to the enclave application whose
+only purpose is to receive as input the bearer token and the zone ID (cf.
+\S~\ref{sec:secrets}).  We configured the proxy to only forward connections from
+the EC2 host to this Web server.  After the administrator launched the enclave,
+she ingests the confidential values into the enclave by calling the private HTTP
+endpoint.  Users won't be concerned about this secret endpoint because the
+enclave application's source code clearly shows that the secret values are only
+used as part of the API request to Cloudflare.
+
+\begin{figure}[t]
+  \centering
+  \input{sections/figures/vct}
+  \caption{An overview of our system that provides verfiable configuration
+  transparency.  After launching the enclave, administrator configures the
+  bearer token (\ding{202}).  Clients can then request the service provider's
+  configuration (\ding{203}).  The application creates an HTTP request, adds the
+  confidential bearer token, and sends the request to Cloudflare's API
+  (\ding{204}).  Finally, the application asks its hypervisor for an attestation
+  document (\ding{205}) and embeds the attestation document in the response to
+  the client, along with Cloudflare's response.}
+  \label{fig:vct}
+\end{figure}
+
+To prove to users that their request was processed by authentic code, they
+provide a nonce (to verify the attestation document's ``freshness'') and the
+enclave application asks its hypervisor to create an attestation document
+containing the provided nonce.  The enclave application then puts the
+Base64-encoded attestation document into its HTTP response to the client.  In
+summary, the client issues the following HTTP request:
+
+\begin{lstlisting}[numbers=none,basicstyle=\small\ttfamily]
+GET /verify?nonce=3a26d...a937f HTTP/2
+Host: example.com
+\end{lstlisting}
+
+And the server responds with:
+
+\begin{lstlisting}[numbers=none,basicstyle=\small\ttfamily]
+HTTP/2 200
+X-Attestation-Document: hEShATgioFkRJalpbW9kdWx...
+
+{"success": true, ... }
+\end{lstlisting}
+
+Upon receiving the enclave's response, the client first verifies then
+authenticity of the attestation document (cf. \S~\ref{sec:attestation}).
+Once convinced that the enclave's response is authentic, the client inspects the
+body of the response---which comes directly from Cloudflare's API.  In
+particular, the client verifies that the service provided indeed configured its
+service as promised.
+
+\phw{Elaborate on how users know that the Cloudflare config they see is also the
+one that's in operation.}
+
+\subsection{Tor bridge}
+\label{sec:tor-bridge}
+
+The Tor network's security rests on the assumption that certain relays in a
+circuit do not collude.  This assumption does not always hold, as in the 2014
+attack that sought to deanonymize onion service users~\cite{Dingledine2015a}.
+The attack consisted of several malicious relays that injected a sequence of
+\texttt{RELAY} and \texttt{RELAY\_EARLY} cells~\cite[\S~5.6]{tor-spec} to encode
+a messages along the circuit.  Being an active attack, this required a
+non-standard Tor implementation that deviates from the Tor protocol.  Done well,
+such attacks can be difficult for clients to recognize.
+
+\Tool{} can help mitigate such attacks by running Tor relays inside an enclave.
+By taking advantage of remote attestation, Tor clients can rest assured that
+they are communicating with an authentic Tor implementation that does not
+deviate from the Tor protocol.  We demonstrate that this is possible by setting
+up a Tor bridge inside an enclave.\footnote{We chose to set up a Tor bridge
+instead of a relay because bridges can be configured to remain private and
+therefore cause no harm to the network if our implementation has bugs or is
+unreliable.}
+
+\subsubsection{Proof-of-concept deployment}
+
+Running the Tor executable inside an enclave is straightforward: the Dockerfile
+and startup script are nearly identical to Listing~\ref{fig:example}.  Remote
+attestation however is more complicated.  Ideally, Tor clients would attest the
+authenticity of their Tor bridge as part of the Tor protocol itself but for the
+sake of this prototype, we are content with handling remote attestation outside
+the Tor protocol: Once the Tor bridge is done bootstrapping, it registers
+its long-term identity key with \tool{}.  The enclave then exposes two TCP
+ports: port 443 for \tool{} and port 9001 for Tor.  Before a Tor client
+establishes a circuit over the bridge, it does remote attestation by fetching
+an attestation document as explained in \S~\ref{sec:attestation}.  After
+verifying the attestation document, the bridge establishes a Tor circuit
+and---while establishing the circuit---verifies that the bridge's long-term
+identity key is identical to the key in the attestation document.  If so, the
+client can rest assured that it's talking to a publicly verifiable Tor bridge.
+
+We implemented the aforementioned prototype and configured Tor Browser v12.0.1
+to use our in-enclave bridge.  Using this setup, we were able to watch 2160p
+YouTube videos free of buffering and other interruptions.
+%
+The above setup works well for an ad-hoc setup but is insufficient for
+network-wide deployment of in-enclave relays and bridges.  In this case, relays
+and bridges need a way to announce if they support relay attestation.  This is
+the job of the Tor network's consensus, which is generated every hour by the
+distributed directory authorities.  Changes to the network consensus are
+complex and need to be addressed in the protocol specification and Tor's
+reference implementation.
+
+\subsubsection{Performance evaluation}
+
+\phw{Provide some sort of performance evaluation to please the bean counters.}
+
+\subsubsection{Comparison to SGX-Tor}
+
+In their NSDI'17 paper, Kim et al. augmented the Tor code with SGX, thus giving
+clients, relays, and directory authorities the ability to remotely verify each
+other~\cite{Kim2017a}.  Our approach is similar but differs in the following
+aspects:
+%
+Clients that seek to verify an SGX enclave's attestation document need to talk
+to Intel's attestation service, which brings with it an array of privacy
+problems~\cite[\S~1.2]{Chen2019a}.  With Nitro enclaves, clients can verify an
+attestation document offline, provided that they have a copy of Amazon's root CA
+public key.
+
+% End-to-end correlation attacks.
+Next, the authors envision the entire Tor network to take advantage of SGX,
+which is not feasible in our approach: Nitro enclaves can only run in
+Amazon-controlled AWS.  If all Tor relays ran inside AWS, Amazon would see both
+traffic entering and exiting the network---ideal conditions for end-to-end
+correlation attacks.  We therefore believe that only select Tor bridges benefit
+from running in \tool{}, lest anonymity is jeopardized.
+
+% Complexity of making it work.
+As for practicality, Kim et al. had to go to great lengths to make Tor support
+SGX~\cite[\S~5]{Kim2017a}.  Our proof-of-concept implementation took one
+afternoon.  Finally, since Kim et al.'s paper was published, Intel announced the
+discontinuation of SGX support for consumer-grade Core CPUs, which further
+limits the number of SGX-capable Tor clients.
+
+\phw{Elaborate on side channels that the EC2 host can exploit.}
+
+\if 0
+\subsection{IP address tokenization}
+\label{sec:tokenization}
+
+Service providers often have an incentive to record and analyze client IP
+addresses to prevent fraud.  IP addresses can reveal an array of sensitive
+information to the service provider, like the city that the user is located in.
+Users therefore prefer that the service provider does not see their IP address.
+We built an IP address tokenization system on top of \tool{} that provides
+user-verifiable guarantees that the service provider anonymized the client's IP
+address \emph{without seeing it in plain text}.  The service provider can then
+run its anti-fraud logic over anonymized IP addresses without suffering a
+significant loss in utility.
+
+\begin{figure}[t]
+\centering
+\input{sections/figures/pseudonymizer-design}
+\caption{Clients communicate with a service that's available behind a
+  third-party TCP proxy whose purpose is (among other things) to drop client IP
+  addresses, so the service never sees them.  The proxy is configured to mirror
+  incoming client requests \emph{with} IP address to the enclave, where
+  addresses are pseudonymized and finally forwarded to a back end for analysis.}
+\label{fig:address-anonymizer}
+\end{figure}
+
+Figure~\ref{fig:address-anonymizer} illustrates our system's architecture.
+Clients talk to a service that is fronted by a third-party reverse proxy.  The
+reverse proxy is configured to strip client IP addresses before forwarding
+requests.  The reverse proxy is also configured to duplicate incoming requests
+to the enclave application.
+% FIXME
+
 
 Our first application is the system that originally motivated us to build the
 enclave framework. Consider a service provider that offers various services to
@@ -64,16 +243,6 @@ pseudonymizes them, and forwards pseudonymized addresses in batches to the
 configured back end.  Components in dark gray are under the service provider's
 control.
 
-\begin{figure}[t]
-\centering
-\input{sections/figures/pseudonymizer-design}
-\caption{Clients communicate with a service that's available behind a
-  third-party TCP proxy whose purpose is (among other things) to drop client IP
-  addresses, so the service never sees them.  The proxy is configured to mirror
-  incoming client requests \emph{with} IP address to the enclave, where
-  addresses are pseudonymized and finally forwarded to a back end for analysis.}
-\label{fig:address-anonymizer}
-\end{figure}
 
 One problem however remains: how do clients know that the TLS proxy is in fact
 configured to discard client IP addresses before forwarding requests to the
@@ -140,64 +309,4 @@ however, the HMAC-based method does not preserve the prefixes of IP addresses:
 two IP addresses that differ in only a single bit will result in entirely
 different hashes.  On the privacy/utility spectrum, the HMAC-based method
 therefore leans more toward privacy.
-
-\subsection{$k$-anonymity Enforcer}
-\label{sec:shuffler}
-
-Bittau et al.'s SOSP'17 paper~\cite{Bittau2017a} proposes a private analytics
-system that helps service providers gain insight into their clients' usage
-patterns.  Their system---called PROCHLO---consists of three components:
-(\emph{i}) software running on the client, which can (but doesn't have to) add
-local differential privacy to client measurements.  Measurements consist of
-product-relevant answers to questions like ``has the user interacted with her
-browser in the last 24 hours?'' These measurements are then sent to (\emph{ii})
-a shuffler, which enforces a configurable $k$-anonymity threshold on incoming
-measurements.  The shuffler then sends measurements meeting that threshold to
-(\emph{iii}) an analytics system that the service provider uses to explore
-users' anonymized data.  The PROCHLO paper envisions the shuffler running in a
-secure enclave; otherwise users would have no reason to trust that the shuffler
-is in fact enforcing $k$-anonymity thresholds.  To that end, the authors
-designed the shuffler to run inside an Intel SGX enclave, which was challenging
-considering the memory constraints that SGX imposes.  For more details about the
-shuffler, refer to the original PROCHLO paper~\cite[\S~3.3]{Bittau2017a}.
-
-As part of an unrelated research project, we were experimenting with private
-telemetry, and we therefore used our framework to re-implement the shuffler in
-approximately 1,000 lines of code.\footnote{The code is available at:
-\url{https://github.com/brave-experiments/p3a-shuffler}.} Our implementation is
-a near-complete clone of the shuffler as it was proposed in the PROCHLO paper
-but for simplicity, we did not implement nested
-encryption~\cite[\S~3]{Bittau2017a}.  Figure~\ref{fig:shuffler} shows that our
-shuffler takes as input confidential client measurements and enforces a
-configurable $k$-anonymity threshold on those measurements.  Every $t$ seconds,
-the shuffler discards messages that don't meet the threshold and forwards the
-remaining messages to its back end.\footnote{The variable $t$ depends on the
-rate of incoming measurements.  Reasonable values can range from hours (if the
-shuffler constantly sees a high rate of incoming measurements) to days.} Before
-clients agree to sending their sensitive measurements to the shuffler, they
-audit its source code and perform remote attestation, to convince themselves
-that their measurements are processed by an authentic enclave.
-
-\begin{figure}[t]
-\centering
-\input{sections/figures/shuffler-design}
-\caption{A conceptual overview of our shuffler implementation.  Clients send
-  measurements to the shuffler, which enforces a $k$-anonymity threshold---in
-  this case for $k$=2. Only one of the two measurement types passes the
-  threshold and is forwarded to the back end.}
-\label{fig:shuffler}
-\end{figure}
-
-Compared to Bittau et al.'s original, SGX-based design, our Nitro-based
-implementation has two key advantages: (\emph{i})~Nitro's underlying hardware
-isolation makes our implementation more robust to hardware side channel attacks
-and (\emph{ii})~Nitro doesn't suffer from the same resource constraints as SGX,
-which renders our implementation easier to use and less error-prone.
-
-\paragraph{Side channels}
-The untrustworthy parent EC2 host can take advantage of the same side
-channel as with the IP address pseudonymizer.  In particular, the EC2 host
-can observe when and how many requests clients make.  Like with the IP address
-pseudonymizer, the PROCHLO paper closes this side channel by aggregating
-requests, preventing the EC2 host from linking incoming to outgoing
-requests.
+\fi

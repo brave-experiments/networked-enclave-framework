@@ -1,0 +1,73 @@
+\begin{tikzpicture}[node distance=20pt] % Reduce default distance to save space.
+
+  \node [draw,
+         label={[anchor=north]above:EC2 host},
+         minimum height=90pt,
+         align=center,
+         minimum width=60pt] (ec2) {};
+
+  \node [draw,
+         label={[anchor=north]above:Enclave},
+         right=0pt of ec2,
+         fill=black!10,
+         minimum height=90pt,
+         minimum width=60pt] (enclave) {};
+
+  \node [draw,
+         below=0pt of enclave.south west,
+         minimum width=120pt] (hypervisor) {Hypervisor};
+
+  \node [draw,
+         align=center,
+         below=of ec2.north] (proxy) {Proxy};
+
+  \node [draw,
+         align=center,
+         below=of proxy.south] (admin) {Admin};
+
+  \node[draw,
+        align=center,
+        fill=white,
+        xshift=5pt,
+        right=of proxy] (nitriding) {Nitriding};
+
+  \node[draw,
+        align=center,
+        fill=white,
+        below=of nitriding] (app) {App};
+
+  \node [draw,
+         left=of proxy] (cloudflare) {Cloudflare};
+
+  \node [draw,
+         below=of cloudflare] (client) {Client};
+
+  % The admin configures confidential information.
+  \draw [-latex]
+        (admin.north) -- (proxy.south)
+        node [midway, fill=white, circle, inner sep=-2pt] {\ding{202}};
+  \draw [-latex]
+        ([yshift=-5pt]proxy.east) -- ([yshift=-5pt]app.west);
+
+  % Clients talking to the application.
+  \draw [-latex, densely dotted]
+        (client.east) -- ([yshift=-3pt]proxy.west)
+        node [midway, fill=white, circle, inner sep=-2pt] {\ding{203}};
+  \draw [-latex, densely dotted]
+        ([yshift=5pt]proxy.east) -- ([yshift=5pt]nitriding.west);
+  \draw [-latex, densely dotted]
+        (nitriding.south) -- (app.north);
+
+  % Application talking to Cloudflare.
+  \draw [-latex, densely dashed]
+        (app.west) -- (proxy.east)
+        node [midway, fill=white, circle, inner sep=-2pt] {\ding{204}};
+  \draw [-latex, densely dashed]
+        ([yshift=3pt]proxy.west) -- ([yshift=3pt]cloudflare.east);
+
+  % Application asks for an attestation document.
+  \draw [-latex, densely dashdotted]
+        (app.south) -- ([xshift=32pt]hypervisor.north)
+        node [midway, fill=white, circle, inner sep=-2pt] {\ding{205}};
+
+\end{tikzpicture}

@@ -1,4 +1,4 @@
-\section{Related Work}
+\section{Related work}
 \label{sec:related-work}
 
 Arnautov et al. present in their OSDI'16 paper a mechanism that allows Docker
@@ -10,7 +10,7 @@ SGX-based extension to HTTP that makes a Web server attestable to clients.  Our
 framework also allows for attestable Web services, but without modifications to
 HTTP.
 
-\paragraph{Applications of Enclaves}
+\paragraph{Applications of enclaves}
 
 Researchers have proposed numerous and diverse enclave-enabled systems, ranging
 from DeFi oracles~\cite{Zhang16a}, to health apps for
@@ -24,7 +24,7 @@ enclave that runs the contact discovery code.  Two years later, in 2019, the
 Signal team built its ``secure value recovery'' feature on SGX as
 well~\cite{Lund19a}.
 
-\paragraph{Frameworks for Enclave Development}
+\paragraph{Frameworks for enclave development}
 
 To facilitate working with enclaves, several frameworks have emerged that
 abstract away complicated and error-prone low-level aspects of enclaves.
@@ -43,9 +43,9 @@ eliminates an entire class of bugs that could jeopardize the security of
 enclave applications, and unlike Asylo and Open Enclave, our framework only
 supports Nitro enclaves because the security guarantees of a framework are only
 as strong as the underlying enclave hardware, and in the case of Intel, ARM,
-and AMD, side channel attacks are a severe concern.
+and AMD, side channel attacks remain a serious concern.
 
-\paragraph{Attacks Against Enclaves}
+\paragraph{Attacks against enclaves}
 
 Enclaves based on Intel's SGX technology share a CPU with untrusted code, which
 raises the flood gates for side channel attacks.  Consequently, attacks have
@@ -63,7 +63,8 @@ channel attacks by executing the enclave code on a CPU separate from the
 untrusted code.  Note that this is the default for Nitro enclaves.
 
 For a comprehensive overview of attacks against SGX, refer to Fei et al.'s
-survey~\cite{Fei2021a} and Nilsson et al.'s arXiv report~\cite{Nilsson20a}.
+survey~\cite{Fei2021a}, Nilsson et al.'s arXiv report~\cite{Nilsson20a}, and
+Van Schaik et al.'s technical report~\cite{Schaik2022a}.
 
 Among all currently-available commodity enclaves, Intel's SGX has received the
 most attention from academia but ARM's TrustZone and AMD's SEV have not been

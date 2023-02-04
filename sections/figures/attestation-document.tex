@@ -1,0 +1,28 @@
+\begin{tikzpicture}[node distance=20pt]
+
+  %               x,y      x,y
+  \draw [dotted] (0,0) -- (0,1.75);
+  \draw [dotted] (3,0) -- (3,1.75);
+  \draw [dotted] (6,0) -- (6,1.75);
+
+  \node at (0,2) {Client};
+  \node at (3,2) {Enclave};
+  \node at (6,2) {Hypervisor};
+
+  \draw [-latex]
+        (0.1, 1.5) -- (2.9, 1.25) node [midway, fill=white, text centered]
+        { $n$ };
+
+  \draw [-latex]
+        (3.1, 1.25) -- (5.9, 1) node [midway, fill=white, text centered]
+        { $n$, $K_{pub}$ };
+
+  \draw [-latex]
+        (5.9, 0.75) -- (3.1, 0.5) node [midway, fill=white, text centered]
+        { $A(n, K_{pub})$ };
+
+  \draw [-latex]
+        (2.9, 0.5) -- (0.1, 0.25) node [midway, fill=white, text centered]
+        { $A(n, K_{pub})$ };
+
+\end{tikzpicture}
