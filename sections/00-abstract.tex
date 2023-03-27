@@ -1,6 +1,6 @@
 \begin{abstract}
 
-In 2020, Amazon introduced Nitro enclaves---cloud-based secure enclaves that do
+In 2020, Amazon introduced Nitro enclaves: cloud-based secure enclaves that do
 not share hardware with untrustworthy code, therefore promising resistance
 against side channel attacks, which have plagued Intel's SGX for years.  While
 their security properties are attractive, Nitro enclaves are difficult to
@@ -12,11 +12,13 @@ flexible use of Nitro enclaves by abstracting away complex aspects like remote
 attestation and end-to-end encryption between an enclave and a remote client.
 %
 We demonstrate the practicality of our framework by designing and implementing
-two production-grade systems that solve real-world problems: remotely verifiable
-IP address pseudonymization and private telemetry.
+two novel systems that solve real-world problems: an enclave-enabled Tor bridge
+and a system for ``infrastructure transparency,'' i.e. securely making public
+the configuration of, say, cloud providers.
 %
-Our practical experience suggests that our framework enables quick prototyping,
-is flexible enough to accommodate different use cases, and inherits strong
-security and performance properties from the underlying Nitro enclaves.
+Performance evaluations and our practical experience suggests that \tool{}
+enables quick prototyping, is flexible enough to accommodate different use
+cases, and inherits strong security and performance properties from the
+underlying Nitro enclaves.
 
 \end{abstract}

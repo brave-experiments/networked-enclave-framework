@@ -8,9 +8,9 @@ attacks~\cite{VanBulck2018a}, injected software faults~\cite{Murdock2020a}, and
 exploited side channels introduced by shared caches~\cite{Brasser2017a}, all
 with the goal of exfiltrating information that was meant to remain in the
 enclave.  The underlying flaw that most attacks take advantage of is that the
-untrustworthy operating system and the enclave share a CPU, which provides many
-options for side channel attacks.  On top of that, SGX remains difficult to use
-and imposes significant resource constraints~\cite{Ngoc2019a}.
+untrustworthy operating system and the enclave share a CPU, which invites side
+channel attacks.  On top of that, SGX remains difficult to use and imposes
+significant resource constraints~\cite{Ngoc2019a}.
 
 % How Nitro enclaves are better.
 Several cloud providers began in 2020 to offer ``confidential computing''
@@ -18,95 +18,61 @@ solutions.  Google's is based on AMD's Secure Encrypted Virtualization
 (SEV)~\cite{googlecc} while Microsoft's is based on SGX~\cite{azurecc}.  Both
 offerings inherit the attack classes that plague their respective architectures.
 Amazon took a different path by offering a new enclave architecture based on
-their Nitro virtual machine isolation technology~\cite{nitro-enclaves}.  Nitro
-enclaves are separate virtual machines with hardware-enforced CPU, memory, and
-device isolation, which imposes limits on access by untrustworthy code.  While
-the architecture appears promising, Nitro enclaves remain difficult to use:
-documentation is sparse, few applications exist, and enclaves can only interact
-with the parent EC2 instance via a constrained, socket-like interface.
-
-% What we did.
-This paper presents the design, implementation, and real-world application of
-\tool{}: a tool kit for developing networked Nitro enclaves.  Key features of
-\tool{} include
-(i) the ability for enclave code to seamlessly and securely talk to clients over
-the Internet;
-(ii) abstracting away the constrained enclave environment to make it possible to
-enclave-ify applications without modifications;
-(iii) a design for horizontally scaling enclaves by synchronizing secret key
-material; and
-(iv) tooling that transparently handles remote attestation, without the enclave
-application having to be involved.
-
-% Challenges that we had to overcome.
-During the development of \tool{}, we had to overcome several challenges.
-First, Nitro enclaves are meant to be highly constrained environments and
-therefore lack a dedicated networking interface.  We designed a mechanism that
-allows enclaves to seamlessly send and receive data over the Internet while
-maintaining an allow list of destinations, for defense in depth in case of
-enclave compromise.
+their custom Nitro system~\cite{nitro-enclaves}.  Nitro enclaves are
+virtual machines with hardware-enforced CPU, memory, and device isolation.
 %
-Second, the attestation process for Nitro enclaves was not designed to be
-performed over the Internet.  We developed a way to bind a TLS session to
-an attestation document to assure clients that they are communicating with
-an authentic enclave.
-%
-Third, we had to devise a reproducible and yet easy-to-use build pipeline that
-allows end users---regardless of their operating system---to compile the enclave
-application and end up with the exact same image ID as the enclave provider.
-%
-Fourth, while \tool{}'s networking code easily supports low-latency and
-high-throughput applications, scaling is non-trivial.  We therefore designed a
-way for enclaves to scale horizontally while synchronizing their key material.
-We therefore designed a mechanism that allows enclaves to securely share their
-key material.
+While the architecture appears promising, Nitro enclaves remain difficult to
+use: documentation is sparse, few applications exist, and enclaves can only
+interact with the parent EC2 instance via a constrained, socket-like interface.
+% Research questions.
+In this paper, we answer the following research questions.
+\begin{description}
+  \item[$RQ_1$] How can we abstract away the complexity of working with Nitro
+    enclaves?
+  \item[$RQ_2$] What workloads (in latency and throughput) can Nitro enclaves
+    sustain?
+  \item[$RQ_3$] What new enclave applications emerge?
+\end{description}
 
-% Evaluation.
-Having overcome the above design challenges, we implemented an easy-to-use Go
-tool kit that abstracts away the difficulties and pitfalls of working with
-networked enclaves.  
+% How we answer RQ1.
+We answer $RQ_1$ by presenting the design and implementation of \tool{}: a tool
+kit for rapidly developing networked Nitro enclave applications.  \Tool{}
+abstracts away the complexity and pitfalls of working with Nitro enclaves,
+making it possible to run Docker images inside an enclave without modification.
+Our evaluation shows that a single \tool{}-powered enclave enables low-latency
+and high-throughput use cases like HD video calls but we further push the
+envelope by designing an enclave synchronization mechanism to scale enclaves,
+which can handle intense work loads.
 
-The use of Go allows for rapid prototyping and greatly
-reduces the risk of memory corruption bugs because of Go's memory safety.  We
-conduct latency measurements to show that our framework can handle
-high-throughput and real-time applications, and we demonstrate its usefulness
-and robustness by building two applications on top of it.
+% How we answer RQ2.
+Having developed \tool{}, we move on to answering $RQ_2$.  We study the
+latency and throughput guarantees of Nitro enclaves in general and \tool{} in
+particular.  We find that Nitro enclaves have overhead in both latency
+($\approx$1.2x) and throughput ($\approx$7x) compared to a system running in
+Docker but this overhead still allows for low-latency and high-throughput
+enclave applications.
 
-In summary, this work makes the following contributions:
-
-\begin{itemize}
-  \item We present the architecture and implementation of \tool{}, a tool kit
-    that facilitates moving existing applications into an enclave---often
-    \emph{without modifications}.  \Tool{} provides the application with a
-    secure channel that's terminated inside the enclave, and can scale
-    horizontally by taking advantage of a novel enclave synchronization
-    mechanism.
-
-  \item We evaluate \tool{}'s latency and throughput and find that it can easily
-    support low-latency, high-throughput applications.  Our stress test shows
-    that a minimal enclave application can sustain more than 1,000 requests per
-    second and (depending on direction) a throughput of more than 1 Gbit/sec.
-    Anecdotally, we found that a SOCKS proxy inside an enclave can support HD
-    video streaming.
-
-  \item We show that \tool{} is practical by putting it to the test: we build
-    two enclave applications, each a contribution in its own right.  First, we
-    set up an in-enclave Tor bridge that provides verifiable guarantees to its
-    users that the Tor code has not been tampered with.  Second, we build an
-    application that allows service providers to make the configuration of their
-    infrastructure verifiably transparent, allowing users to ensure that privacy
-    promises are indeed kept.
-
-\end{itemize}
+% How we answer RQ3.
+We answer $RQ_3$ by putting \tool{} to the test.  We built two novel enclave
+applications that take advantage of \tool{}'s flexiblity and performance.  The
+first application is a Tor bridge running inside an enclave, which allows users
+to convince themselves (using remote attestation) that the bridge is running
+authentic and unmodified Tor code.  We found that this enclave-enabled Tor
+bridge allows for convenient Web browsing---2160p YouTube videos played smoothly
+and without buffering.  The second application allows a service provider to
+grant its users insight into previously-confidential infrastructure
+configuration.  By deploying a ``configuration query service'' inside an
+enclave, users have proof that the service provider's privacy promises are
+reflected in infrastructure configuration.
 
 \paragraph{Structure}
 
 Section~\ref{sec:background} provides background on secure enclaves in general
 and AWS Nitro enclaves in particular.  Section~\ref{sec:design} introduces the
-design and implementation of our software framework in addition to the build
-process that guarantees reproducible enclave application builds, followed by
-Section~\ref{sec:applications}, which presents two production-quality
-applications that we built on top of our framework.  We evaluate our framework
-in Section~\ref{sec:evaluation} and discuss its limitations in
+design and implementation of \tool{}, followed by
+Section~\ref{sec:applications} presenting two production-quality applications
+that we built with \tool{}.  We evaluate \tool{} in
+Section~\ref{sec:evaluation} and discuss its limitations in
 Section~\ref{sec:limitations}.  Finally, Section~\ref{sec:related-work}
-contrasts our work with past research.
+contrasts our work with past research and we conclude in
+Section~\ref{sec:conclusion}.

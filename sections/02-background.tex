@@ -1,14 +1,13 @@
-\section{Background}
+\section{Background}%
 \label{sec:background}
 
-This section provides an overview of secure enclaves in general
-(\S~\ref{sec:enclaves}) and AWS's implementation in particular
-(\S~\ref{sec:nitro}).
+We begin by providing an overview of secure enclaves in general
+(\S~\ref{sec:enclaves}), followed by the AWS Nitro system (\S~\ref{sec:nitro})
+and Nitro enclaves (\S~\ref{sec:nitro-enclaves}).  We finally compare Nitro
+enclaves to SGX-based enclaves (\S~\ref{sec:comparison}).
 
-\subsection{Secure enclaves}
+\subsection{Secure enclaves}%
 \label{sec:enclaves}
-
-\cite{Bean2022a}
 
 Computers operate on data that is at rest, in transit, and in use.  We have
 well-understood and practical ways to protect data at rest (e.g., full disk
@@ -27,17 +26,18 @@ view) operating system.  Enclaves offer various security properties but in the
 context of this work, we rely on the following three:
 
 \begin{description}
-  \item[Confidentiality] An unauthorized entity must not be able to observe the
-    data that an enclave is computing.
+  \item[Confidentiality] An unauthorized entity (e.g., the operating system)
+    must not be able to observe the data that an enclave is processing.
 
   \item[Integrity] An unauthorized entity must not be able to modify the data
-    that the enclave is computing on, or the code it is running.
+    that the enclave is processing, or the code that it is running.
 
-  \item[Verifiability] A separate entity must be able to verify if the enclave
-    is running the code that its operator claims it is running.
+  \item[Verifiability] A separate entity (e.g., an end user) must be able to
+    verify if the enclave is running the code that its operator claims it is
+    running.
 \end{description}
 
-Modern CPUs of major hardware vendors implement secure enclaves: Intel has SGX,
+Major hardware vendors offer CPUs that implement secure enclaves: Intel has SGX,
 ARM has TrustZone, and AMD has SEV.  A frequent critique of these industry
 efforts focuses on their proprietary nature. The community has a conceptual
 understanding of the mechanisms behind enclaves but their exact hardware
@@ -47,79 +47,95 @@ situations where a system must process sensitive data while simultaneously be
 shielded off from the complexity (and subsequent insecurity) of general-purpose
 computers.
 
-\subsection{AWS Nitro enclaves}
+\subsection{The AWS Nitro system}%
 \label{sec:nitro}
 
-* nitro cards are purpose-built hardware from amazon
-* firmware also built by amazon
-* nitro cards are physically connected to host system main board via pcie; but
-logically isolated
-* primary nitro card is the nitro controller which provides the hardware root of
-trust for the overall system.
-  - secure boot
+Nitro enclaves are virtual machines that run on dedicated hardware that is not
+shared with an enclave's EC2 host.  The technology that enforces isolation
+between the enclave and its EC2 host also enforces isolation between any two
+given EC2 instances: the Nitro system.  Before covering enclaves, we explain how
+the Nitro system works---first by discussing its three key components.
 
+\emph{Nitro cards}: While physically connected to a server's main board via
+PCIe, Nitro cards are dedicated and custom-built hardware and software that runs
+independently of a server's main board.  Nitro cards implement the interfaces
+that allow for the management of a server's computational, memory, and storage
+needs, among other things.  A Nitro card also provides a server's hardware root
+of trust and is responsible for firmware updates, secure boot, and acts as an
+interface between the server and the EC2 control plane.~\cite[pp.
+7--10]{Bean2022a}.
 
-% What is AWS Nitro.
-In YYYY, Amazon introduced the AWS Nitro system with the goal of improving
-the performance and security of EC2 as well as accelerating innovation.
-The Nitro system consists of a lightweight software hypervisor and
-dedicated hardware cards that handle offloading for storage and networking,
-deploy firmware updates, provide a hardware-based root of trust, and several
-other features---all of which used to be done in software.
+\emph{Nitro security chip}: The Nitro card acts independently of the system main
+board.  The purpose of the Nitro security chip, which is controlled by the Nitro
+card, is to extend the Nitro card's control over the system main board.  One of
+the chip's responsibilities is to prevent the CPU from updating the system's
+firmware when run in bare metal mode~\cite[pp.~10--11]{Bean2022a}.
 
-* nitro controller
-  - coordinates all cards
-  - provides hardware root of trust
-    + boots from private SSD; memory safety of initial boot code formally verified~\cite{Cook2018a}
-  - coordinates with nitro hypervisor
-  - coordinates with nitro security chip
+\emph{Nitro hypervisor}:
+The hypervisor is a firmware-like component that receives command from the Nitro
+card.  The hypervisor is stripped of any non-essential code: it does not contain
+networking code, file systems, shells, or other utilities that would allow a
+successful attacker to access other infrastructure~\cite[pp.~11--12]{Bean2022a}.
+%  - kvm-based
+%  - custom MM
+%  - awaits commands from nitro controller
+%  - not connected to the network
+%  - no dom0
 
-* nitro hypervisor
-  - kvm-based
-  - custom MM
-  - awaits commands from nitro controller
-  - not connected to the network
-  - no dom0
+Other design decisions are meant to provide defense in depth: (i) By
+design, the Nitro system has no operator access, i.e., operators are unable to
+log in to an EC2 Nitro system and inspect memory or access customer
+data~\cite[p.~15]{Bean2022a}. (ii) The Nitro system is designed to communicate
+passively, i.e., system components never initiate outgoing connections during
+production operations.
 
-* nitro security chip
-  - traps i/o to non-volatile storage
-  - hardware-based root of trust
+Of particular interest is how the Nitro system aims to prevent side channel
+attacks: customer instances never share a given CPU core in parallel.  If two
+customers use a CPU core sequentially, the hypervisor ensures that state is
+cleared in between use.  Depending on the instance, cores may be exclusively
+allocated to a customer, which includes Nitro enclaves.  That means that L1 and
+L2 caches are also never shared.  Last-level cache lines may be shared but only
+non-simultaneously.  Amazon's documentation further
+states~\cite[p.~19]{Bean2022a}:
 
+\begin{quote}
+By virtue of its function, only relatively infrequently accessed data is
+referenced in last-level cache lines.  Side-channels typically require a very
+large and statistically relevant number of samples in order to over-come the
+noise present in systems.
+\end{quote}
 
-% What are Nitro enclaves.
-The Nitro system serves as the underlying foundation of Nitro enclaves.
-An enclave is a virtual machine whose hardware resources are physically
-isolated.
+\subsection{Nitro enclaves}%
+\label{sec:nitro-enclaves}
 
-
-* nitro requires kernel module
-
-
-
-Hypervisor does not do anything security-related.
-
-\cite{enclave-talk}
-
-
-
-
-% What is AWS Nitro.
-* hardware offload for ebs storage and networking
-* firmware updates
-* powers all ec2 instance types
-* hardware root of trust
-
-three core components:
-* Nitro Cards I/O Acceleration
-* Nitro Security Chip
-* Nitro Hypervisor
-
-% security
-* hardware-based root of trust
-
-% PCR values.
+Nitro enclaves inherit the isolation and security properties of the Nitro
+system.  When an EC2 host system launches a Nitro enclave, it ``sacrifices'' at
+least one of its CPUs and some of its memory pages to the enclave.  These
+resources are subsequently unavailable to the EC2 host and exclusively used by
+the enclave.  The same isolation mechanism that protects individual customer EC2
+instances from each other also protects the Nitro enclave from its host.
 
 \begin{figure}[t]
+  \centering
+  \input{sections/figures/dev-workflow}
+  \caption{The development workflow for compiling enclave applications.
+  Docker's command line tool compiles application source code into a Docker
+  image, which is then compiled to an enclave image file using the nitro-cli
+  command line tool.}\label{fig:dev-workflow}
+\end{figure}
+
+On the software level, Nitro enclaves are virtual machines.  They have their own
+Linux kernel that is independent from the host.  Customers can create enclave
+images from a Docker image that contains the enclave application.  Amazon
+provides a command line tool, nitro-cli~\cite{nitro-cli}, which compiles a
+Docker image into an enclave image file (EIF).  Figure~\ref{fig:dev-workflow}
+illustrates the process.  As part of compilation, nitro-cli prints a number of
+platform configuration registers (PCRs) that contain SHA-384 hashes over
+distinct layers of the enclave image file.  Table~\ref{tab:pcr} shows the six
+available PCRs.  PCR0 is of particular importance for remote attestation as we
+will explain later.
+
+\begin{table}[t]
     \centering
     \begin{tabular}{r l}
     \toprule
@@ -134,54 +150,61 @@ three core components:
     \bottomrule
     \end{tabular}
     \caption{The available platform configuration registers (PCRs) and the
-    meaning behind them.}
-    \label{fig:pcr}
-\end{figure}
+    meaning behind them.}\label{tab:pcr}
+\end{table}
 
-See Figure~\ref{fig:pcr} for PCR values~\cite{pcrs}.
+By design, Nitro enclaves have very limited abilities to communicate with the
+outside world.  Lacking a dedicated networking interface, Nitro enclaves can
+only communicate with their EC2 host via a VSOCK interface~\cite{vsock}.
+Originally proposed for communication between a hypervisor and its virtual
+machines, AWS repurposed the VSOCK interface to serve as communication channel
+between an enclave and its parent EC2 instance.  From a developer's point of
+view, the VSOCK interface is a point-to-point interface connecting the two.  On
+the address layer, 32-bit context IDs take the role of IP addresses in VSOCK
+interfaces.  For example, the enclave may have context ID 4 while its parent EC2
+instance may have context ID 3.  On the transport layer, one can use the same
+protocols that one can use over the IP-based address family; namely TCP, UDP,
+etc.
 
+\subsection{Nitro enclaves versus SGX}%
+\label{sec:comparison}
 
-In this work, we build on top of AWS's Nitro enclaves.  Nitro enclaves are
-isolated and constrained virtual machines that run alongside an EC2 instance
-that is responsible for starting the enclave, and communicating with it.
-Crucially, an enclave does not share hardware resources with its parent EC2
-image; it is guaranteed to have its own CPU and memory which is
-isolated from the parent EC2 image by the same hypervisor that isolates EC2
-instances from each other.
-As far as computing resources go, Nitro enclaves are essentially an independent
-computer, with its own operating system, CPU, and memory, but \emph{without} a
-networking interface or persistent storage.  By design, the enclave's network
-traffic must go through the parent EC2 instance, constrained to a minimal VSOCK
-interface~\cite{vsock}. Originally proposed for communication between a
-hypervisor and its virtual machines, AWS repurposed the VSOCK interface to serve
-as communication channel between an enclave and its parent EC2 instance.  From a
-developer's point of view, the VSOCK interface is a point-to-point interface
-connecting the two.  On the address layer, 32-bit
-context IDs take the role of IP addresses in VSOCK interfaces.  For example, the
-enclave may have context ID 4 while its parent EC2 instance may have context ID
-3.  On the transport layer, one can use the same protocols that one can use over
-the IP-based address family; namely TCP, UDP, etc.
+We now make an attempt to compare how Nitro enclaves and SGX differ in their
+threat model, their development model, and in the way they can address security
+vulnerabilities.
 
-\begin{figure}[t]
-  \centering
-  \input{sections/figures/dev-workflow}
-  \caption{The development workflow for compiling enclave applications.
-  Docker's command line tool compiles application source code into a Docker
-  image, which is then compiled to an enclave image file using the nitro-cli
-  command line tool.}
-  \label{fig:dev-workflow}
-\end{figure}
+% Hard to get authoritative information on SGX TCB and threat model.  Some
+% decent (yet incomplete) information:
+% https://people.csail.mit.edu/alinush/6.858-fall-2014/2015/l08-sgx.html
+% https://community.intel.com/t5/Intel-Software-Guard-Extensions/SGX-threat-Model/m-p/1187359
+\emph{Threat model}:
+Both Nitro enclaves and SGX protect against compromise of the host operating
+system.  SGX further protects against compromise of any component other than the
+CPU itself, which includes---if present---the hypervisor.  Specifically, SGX
+assumes that there are no flaws in the CPU's silicon or microcode, and the
+private key is not compromised.  While not explicitly stated, Amazon's design
+document suggests that Nitro enclaves assume that the Nitro system (including
+the Nitro card, the security chip, and the hypervisor) is trusted.  Both Nitro
+enclaves and SGX assume that side channel attacks are not feasible.  For SGX,
+this assumption has not held~\cite{Nilsson20a,Fei2021a}.
 
-% Workflow.
-Figure~\ref{fig:dev-workflow} illustrates the development workflow for enclave
-applications: the workflow begins with the creation of a Docker image that
-contains the application that will run in the enclave.  Using Amazon's
-nitro-cli command-line tool, the developer then compiles the container image to
-an enclave image file (EIF).  The compilation process results in a number of
-\emph{measurement checksums} that uniquely identify the image itself, its
-kernel, and application.  As we will discuss later in the paper, these
-measurements are key to the remote attestation process.
-%
-Once the EIF is ready, the developer starts the enclave on an EC2 instance
-using the nitro-cli command-line tool.  The only way for the EC2 instance to
-exchange data with the enclave is via the VSOCK interface.
+\emph{Development}:
+Intel's SGX was not designed to seamlessly move entire applications into the
+context of an enclave because the libc that is provided by Intel's SDK lacks
+support for many functions and system calls.  Instead, application developers
+were meant to partition their application, i.e., move trusted code fragments
+into the enclave while the remaining code ran outside the enclave.  However,
+projects like Haven~\cite{Baumann2014a} and SCONE~\cite{Arnautov2016a} made it
+possible to run entire unmodified applications inside an SGX enclave.  Nitro
+enclaves in contrast provide by default what Arnautov et al.\ developed in their
+OSDI'14 paper~\cite{Arnautov2016a}: a way to seamlessly run a Docker container
+inside an enclave.
+
+\emph{Addressing vulnerabilities}:
+What means do Intel and Amazon have to mitigate attacks against their enclave
+technology?  Amazon is in possession and control of all hardware and software.
+A hardware flaw in Nitro cards may prove expensive and complicated to fix but a
+fix is feasible without involving the customer.  Intel has less flexibility
+considering that their CPUs are under customer control.  Some SGX
+vulnerabilities have been addressed by updating CPU microcode, which may be a
+standard procedure for service providers but less so for end users.

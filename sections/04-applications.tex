@@ -1,108 +1,132 @@
-\section{Applications}
+\section{\Tool{}-based applications}%
 \label{sec:applications}
 
-We demonstrate the practicality \tool{} by building two applications on top of
-it, each a research contribution in its own right.  First, we run a Tor bridge
-inside an enclave (\S~\ref{sec:tor-bridge}), which mitigates several classes of
-attacks that the Tor network has struggled with in the past.  Second, we design
-an IP address tokenization system (\S~\ref{sec:tokenization}) that allows a
-service provider to anonymize client IP addresses (e.g., for anti-fraud
-purposes) without ever seeing plain IP addresses.
+We demonstrate \tool{}'s practicality by building three applications on top of
+it, each a research contribution in its own right.
+%
+First, we build an application that allows a service provider to disclose its
+infrastructure configuration in a user-verifiable way, thus eliminating the
+trust that users have to have in third-party infrastructure (\S~\ref{sec:vct}).
+%
+Second, we demonstrate 
 
-\subsection{Verifiable configuration transparency}
+the operation of a Tor bridge inside an enclave, which
+mitigates several classes of attacks that the Tor network has struggled with in
+the past (\S~\ref{sec:tor-bridge}).
+%
+Third, we show that \tool{} can handle computationally expensive workloads by
+moving a Web browser into an enclave and letting users interact with it via a
+remote desktop environment (\S~\ref{sec:browser}).
+
+\subsection{Verifiable configuration transparency}%
 \label{sec:vct}
 
-Service providers frequently outsource their infrastructure to third-party
-providers, e.g., HTTP reverse proxies that handle the bulk of client request.
-The way these providers are configured can impact user privacy.  For example, a
-service provider may configure a third-party reverse proxy to strip client IP
-addresses before requests are forwarded to the servers that are controlled by
-the service provider.  How can the service provider prove to users that it
-configured the reverse proxy correctly?  We built an enclave application that
-makes it possible for users to inspect the service provider's configuration with
-verifiable guarantees.
+Service providers typically outsource their infrastructure to third-party
+providers like content delivery networks or cloud computing vendors.  The
+specific configuration of these third-party providers often affects user
+privacy.  For example, a service provider may configure a third-party reverse
+proxy to strip client IP addresses before requests are forwarded to the servers
+that are under the service provider's control.  How can the service provider
+prove to its users that it configured the reverse proxy as promised?  We built
+an enclave application that discloses the service provider's configuration in a
+user-verifiable way, eliminating the trust that users have to place in the
+configuration of third-party infrastructure.
 
-The idea, illustrated in Figure~\ref{fig:vct}, consists of a lightweight enclave
-application whose sole purpose is to query the API of the third-party
-infrastructure provider.  We built our proof-of-concept implementation for
-Cloudflare but the code can easily be adapted to support other providers.
-Cloudflare's API endpoint however requires a confidential bearer token for
-authentication and a semi-confidential zone ID~\cite{spectrum-config}.  These
-two values cannot be hard-coded in the (public) source code of the enclave
-application.  We therefore add a Web server to the enclave application whose
-only purpose is to receive as input the bearer token and the zone ID (cf.
-\S~\ref{sec:secrets}).  We configured the proxy to only forward connections from
-the EC2 host to this Web server.  After the administrator launched the enclave,
-she ingests the confidential values into the enclave by calling the private HTTP
-endpoint.  Users won't be concerned about this secret endpoint because the
-enclave application's source code clearly shows that the secret values are only
-used as part of the API request to Cloudflare.
+The idea, illustrated in Figure~\ref{fig:vct}, consists of a lightweight
+enclave application whose sole purpose is to answer client requests by querying
+the API of the third-party infrastructure provider.  We built our
+proof-of-concept implementation for Cloudflare but the code can easily be
+adapted to support other providers.
+
+To interact with Cloudflare's API endpoint, one needs a confidential bearer
+token for authentication and a semi-confidential zone
+ID~\cite{spectrum-config}.  Unlike the API endpoint URL, these two values
+cannot be hard-coded in the (public) source code of the enclave application.
+We therefore add a second Web server to the enclave application whose only
+purpose is to receive as input the bearer token and the zone ID (cf.
+\S~\ref{sec:secrets}).  We carefully constrained this Web server's HTTP
+handlers, making it impossible to inject anything into the enclave \emph{but}
+the bearer token and the zone ID.  We further configured the proxy to only
+forward connections from the EC2 host to this Web server.  Internet-connected
+adversaries cannot reach this Web server.  After the administrator launched the
+enclave, she ingests the confidential values into the enclave by calling the
+private HTTP endpoint from the EC2 host.  Users have no reason to be concerned
+about this secret endpoint because the enclave application's source code
+clearly shows that the secret values are only used as part of the API request
+to Cloudflare.
 
 \begin{figure}[t]
   \centering
   \input{sections/figures/vct}
-  \caption{An overview of our system that provides verfiable configuration
-  transparency.  After launching the enclave, administrator configures the
-  bearer token (\ding{202}).  Clients can then request the service provider's
-  configuration (\ding{203}).  The application creates an HTTP request, adds the
-  confidential bearer token, and sends the request to Cloudflare's API
-  (\ding{204}).  Finally, the application asks its hypervisor for an attestation
-  document (\ding{205}) and embeds the attestation document in the response to
-  the client, along with Cloudflare's response.}
+  \caption{An overview of the enclave application that provides verfiable
+  configuration transparency.  After launching the enclave, the operator
+  configures the confidential bearer token and zone ID~(\ding{202}).  Clients
+  can then request the service provider's Cloudflare
+  configuration~(\ding{203}).  The application makes an HTTP request (containing
+  the bearer token and zone ID) to Cloudflare's API~(\ding{204}).  Finally, the
+  application asks its hypervisor for an attestation document~(\ding{205}) and
+  embeds the attestation document in the response to the client, along with
+  Cloudflare's response.}%
   \label{fig:vct}
 \end{figure}
 
-To prove to users that their request was processed by authentic code, they
-provide a nonce (to verify the attestation document's ``freshness'') and the
-enclave application asks its hypervisor to create an attestation document
-containing the provided nonce.  The enclave application then puts the
-Base64-encoded attestation document into its HTTP response to the client.  In
-summary, the client issues the following HTTP request:
+Clients communicate with this enclave application via a single endpoint, which
+returns the JSON-encoded Cloudflare configuration.  When calling this endpoint,
+users provide a nonce in their GET request to convince themselves of the
+enclave's ``freshness'' (cf.~\ref{sec:attestation}).  In summary, clients make
+the following request:
+
 
 \begin{lstlisting}[numbers=none,basicstyle=\small\ttfamily]
 GET /verify?nonce=3a26d...a937f HTTP/2
-Host: example.com
+Host: enclave.example.com
 \end{lstlisting}
 
 And the server responds with:
 
 \begin{lstlisting}[numbers=none,basicstyle=\small\ttfamily]
-HTTP/2 200
+HTTP/2 200 OK
+Date: Mon, 13 Mar 2023 18:34:29 GMT
+Content-Type: application/json
 X-Attestation-Document: hEShATgioFkRJalpbW9kdWx...
 
-{"success": true, ... }
+{
+  "domain": "service.provider.com",
+  "modified_on": "2021-09-08T18:04:10.711156Z",
+  ...
+}
 \end{lstlisting}
 
-Upon receiving the enclave's response, the client first verifies then
-authenticity of the attestation document (cf. \S~\ref{sec:attestation}).
-Once convinced that the enclave's response is authentic, the client inspects the
+Upon receiving the enclave's response, the client first verifies the
+authenticity of the attestation document (cf. \S~\ref{sec:attestation}).  Once
+convinced that the enclave's response is authentic, the client inspects the
 body of the response---which comes directly from Cloudflare's API.  In
-particular, the client verifies that the service provided indeed configured its
-service as promised.
+particular, the client consults Cloudflare's API documentation to verify that
+the service provider configured Cloudflare correctly.  Finally, the user
+verifies that the domain inside the enclave's response matches the domain that
+the service provider makes available to its users.
 
-\phw{Elaborate on how users know that the Cloudflare config they see is also the
-one that's in operation.}
-
-\subsection{Tor bridge}
+\subsection{Tamper-resistant Tor bridge}
 \label{sec:tor-bridge}
 
 The Tor network's security rests on the assumption that certain relays in a
-circuit do not collude.  This assumption does not always hold, as in the 2014
-attack that sought to deanonymize onion service users~\cite{Dingledine2015a}.
-The attack consisted of several malicious relays that injected a sequence of
-\texttt{RELAY} and \texttt{RELAY\_EARLY} cells~\cite[\S~5.6]{tor-spec} to encode
-a messages along the circuit.  Being an active attack, this required a
-non-standard Tor implementation that deviates from the Tor protocol.  Done well,
-such attacks can be difficult for clients to recognize.
+user's circuit do not collude.  This assumption does not always hold, as in the
+2014 attack that sought to deanonymize onion service
+users~\cite{Dingledine2015a}.  The attack consisted of several malicious relays
+that injected a sequence of \texttt{RELAY} and \texttt{RELAY\_EARLY} cells to
+encode a messages along the circuit~\cite[\S~5.6]{tor-spec}.  This was an active
+attack and therefore required a non-standard implementation that deviates from
+the Tor protocol.  If done well, such attacks can be difficult for clients to
+recognize.
 
-\Tool{} can help mitigate such attacks by running Tor relays inside an enclave.
-By taking advantage of remote attestation, Tor clients can rest assured that
-they are communicating with an authentic Tor implementation that does not
-deviate from the Tor protocol.  We demonstrate that this is possible by setting
-up a Tor bridge inside an enclave.\footnote{We chose to set up a Tor bridge
-instead of a relay because bridges can be configured to remain private and
-therefore cause no harm to the network if our implementation has bugs or is
-unreliable.}
+\Tool{} can help mitigate such attacks by running Tor infrastructure inside an
+enclave.  By taking advantage of remote attestation, Tor clients can rest
+assured that they are communicating with an authentic Tor implementation that
+does not deviate from the Tor protocol.  We demonstrate that this is possible
+by setting up a Tor bridge inside an enclave.\footnote{We chose to set up a Tor
+bridge instead of a relay because bridges can be configured to remain private
+and therefore cause no harm to the network in case our implementation had
+bugs.}
 
 \subsubsection{Proof-of-concept deployment}
 
@@ -310,3 +334,17 @@ two IP addresses that differ in only a single bit will result in entirely
 different hashes.  On the privacy/utility spectrum, the HMAC-based method
 therefore leans more toward privacy.
 \fi
+
+\subsection{In-enclave Web browser}%
+\label{sec:browser}
+
+advantages:
++ enabling thin clients
++ isolate browser from the client's system
+
+disadvantages:
+- interaction with file system not straightforward
+
+comparison to other approaches
++ cloudflare's thing~\cite{cf-browser-isolation}
++ webenclave~\cite{Wang2021a}

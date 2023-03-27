@@ -1,4 +1,4 @@
-\section{Evaluation}
+\section{Evaluation}%
 \label{sec:evaluation}
 
 We evaluate our enclave framework with respect to
@@ -9,7 +9,12 @@ attestation documents (\S~\ref{sec:attestation-performance}),
 application latency (\S~\ref{sec:latency}),
 and application throughput (\S~\ref{sec:throughput}).
 
-\subsection{Security considerations}
+We ran our performance measurements on a c5.xlarge EC2 host, which is on the
+lower end of enclave-capable instance types.  Our performance numbers therefore
+represent a lower bound of what's possible.  More powerful (and therefore more
+expensive) instance types result in better performance.
+
+\subsection{Security considerations}%
 \label{sec:security}
 
 \phw{Need to make this more rigorous.}
@@ -49,77 +54,83 @@ intentional, i.e., the service provider may deliberately introduce bugs that
 leak sensitive information.  From the user's point of view, eternal vigilance
 is therefore the price of security.
 
-\subsection{Financial cost}
+\subsection{Financial cost}%
 \label{sec:cost}
 
 Nitro enclaves do not incur any extra cost in addition to what the underlying
 EC2 host costs---they can be considered a ``free'' extension to EC2.  Nitro
 enclaves are however only available for select types of EC2 instances because
 they require their own CPU and a minimum amount of memory, and those instance
-types are pricier than the lowest tier that AWS offers.
-%
-We are currently working on deploying the IP address pseudonymization prototype
-that we introduced in Section~\ref{sec:pseudonymization}.  We estimate that our
-enclave is going to have to handle an average of 5,000 requests per minute,
-coming from more than ten million clients.  Our test deployment uses a single
-c5.xlarge EC2 host in the U.S. East region which costs \$0.17 per hour to
-operate, amounting to approximately \$125 per month.
+types are pricier than the lowest tier that AWS offers.  We tested all of the
+practical applications of Section~\ref{sec:applications} on a c5.xlarge
+instance, which is on the lower end of enclave-enabled EC2 instance types.
+This instance comes with four vCPUs and 8 GiB of memory.  As of March 2023, a
+c5.xlarge instance costs USD 0.17 per hour, which amounts to approximately USD
+125 per month.
 
-\subsection{Attestation documents}
+\subsection{Attestation document request rate}%
 \label{sec:attestation-performance}
 
 The fetching of attestation documents is a critical part of our framework's
-overall performance.  We wrote a stress test tool that requests as many
-attestation documents as it can over sixty seconds.  The tool is essentially a
-minimal enclave application that requests attestation documents in a loop.  For
-each attestation document, we asked the hypervisor to include an incrementing
-nonce, to avoid any speedups by caching.  We performed our measurements on a
-c5.xlarge EC2 host which comes with four CPUs and eight GiB of memory.  We were
-able to obtain approximately 900 documents per second, with each request taking
-a median of one millisecond ($s = 0.3\,\text{ms}$) to obtain an attestation
-document.
+overall performance.  We built a stress test application that runs a busy loop
+for 60 seconds to request as many attestation documents as possible.  For each
+request, we ask the hypervisor to include an incrementing nonce in the
+attestation document, to avoid any speedups by caching.  We ran this stress test
+on a c5.xlarge EC2 host which comes with four CPUs and eight GiB of memory.
+Table~\ref{tab:att-perf} shows the results.  We were able to obtain
+approximately 840 documents per second with the median request taking 1.1
+milliseconds to complete.
 
-\subsection{Application latency}
+\begin{table}[t]
+    \centering
+    \begin{tabular}{r r r r}
+    \toprule
+      Min. (ms) & Median (ms) & Mean (ms) & Max. (ms) \\
+    \midrule
+      1.1 & 1.1 & 1.2 & 7.9 \\
+    \bottomrule
+    \end{tabular}
+    \caption{Summary statistics capturing the expected latency of requesting
+    attestation documents from the Nitro hypervisor.}%
+    \label{tab:att-perf}
+\end{table}
+
+\subsection{Application latency}%
 \label{sec:latency}
 
-Next, we set out to measure the networking latency of the critical path, as
-illustrated in Figure~\ref{fig:stress-test}.  In particular, we test the
-latency of our TCP proxy, the VSOCK interface between EC2 and enclave, and a
-minimal enclave application.
-%
-We measure latency in three separate setups, designed to help us understand how
-much latency each component in our data flow adds:
-
-\begin{figure}[t]
-    \centering
-    \input{sections/figures/stress-test}
-    \caption{Our stress test tool tests the performance of our critical path,
-    consisting of the TCP proxy, the VSOCK interface, and \tool{}.}
-    \label{fig:stress-test}
-\end{figure}
+We seek to measure two types of latency: (i) the latency induced by the
+interface between an EC2 host and its Nitro enclave and (ii) the latency induced
+by \tool{}, both with and without \tool{}'s reverse proxy configuration.  We
+built a lightweight enclave application that helps us measure these latencies.
+The application implements a Web server that responds with the string ``hello
+world'' upon receiving requests for its index.  We made this application minimal
+because we're only interested in the latency \emph{before} a request reaches the
+enclave application.  We therefore also deactivate the Web server's TLS support
+and use plain HTTP for our measurements.  To simulate clients, we use the HTTP
+load test tool Baton~\cite{baton}.  Equipped with both an HTTP server and
+client, we measure the request latency to our application in five separate
+setups:
 
 \begin{description}
-  \item[Full:] This represents the full data flow as it would occur in
-    production, i.e. client $\rightarrow$ TCP proxy $\rightarrow$ VSOCK
-    interface $\rightarrow$ enclave application.
+  \item[Loopback] The client talks to the Web server via the loopback interface.
+    This setup provides the latency baseline that we compare against.
 
-  \item[No proxy:] This setup does not contain the TCP proxy, i.e., the client
-    talks to the VSOCK interface directly, i.e. client $\rightarrow$ VSOCK
-    interface $\rightarrow$ enclave application.
+  \item[Docker] The Web server runs in a local Docker container.
 
-  \item[Direct:] This setup does not contain the TCP proxy and the VSOCK
-    interface.  Instead, the client directly talks to an application instance that is
-    running \emph{outside} the enclave, i.e., client $\rightarrow$ application.
+  \item[Enclave] The Web server runs inside a Nitro enclave but without \tool{}.
+    All traffic goes over the VSOCK interface.  This measures the latency
+    introduced by the interface to the Nitro enclave.
+
+  \item[\Tool{}-nrp] The Web server runs inside a Nitro enclave but without a
+    reverse proxy.  This measures the latency introduced by \tool{}'s tap
+    forwarding code.
+
+  \item[\Tool{}] The Web server runs inside a Nitro enclave with \tool{} acting
+    as a reverse HTTP proxy.  This measures the latency introduced by \tool{}'s
+    tap forwarding code \emph{and} its reverse HTTP proxy.
 \end{description}
 
-As part of our measurement setup, We first deploy the code from
-Figure~\ref{fig:hello-world}---a minimalistic application that responds with
-the string ``hello world'' upon receiving requests for the path /hello-world.
-It's important to use a minimalistic application because we're only interested
-in the latency that is caused by the components \emph{before} a request reaches
-the enclave application.
-
-To simulate clients, we use the HTTP load test tool Baton~\cite{baton}.  We run
+We run
 Baton on the parent EC2 host and instruct it to send 100,000 requests using 10
 concurrent threads.  We had to patch Baton's source code to add VSOCK support
 (to be able to send requests directly to the enclave via the VSOCK interface)
@@ -144,13 +155,15 @@ empirical CDF of the same latency measurements for our three test setups.
     \toprule
       Setup & C $\rightarrow$ S (Gbits/sec) & S $\rightarrow$ C (Gbit/sec) \\
     \midrule
+      Loopback        & 57.0 & 57.0 \\
       Docker          & 26.0 & 28.9 \\
       Enclave         &  3.6 &  3.2 \\
       Nitriding(-nrp) &  0.3 &  1.1 \\
     \bottomrule
     \end{tabular}
-    \caption{The TCP throughput measurements when running iperf3 in Docker,
-      inside an enclave, or inside an enclave using nitriding.}
+    \caption{The TCP throughput measurements when running iperf3 over the
+    loopback interface, in Docker, inside an enclave, or inside an enclave using
+    nitriding.}%
     \label{fig:iperf3}
 \end{table}
 
@@ -158,16 +171,19 @@ empirical CDF of the same latency measurements for our three test setups.
     \centering
     \begin{tabular}{l r r r}
     \toprule
-      Setup & Reqs/sec & \makecell[r]{Mean latency\\(ms)} &
-                         \makecell[r]{Max latency\\(ms)} \\
+      Setup & \makecell[r]{Requests\\(per sec)} &
+              \makecell[r]{Mean latency\\(ms)} &
+              \makecell[r]{Max latency\\(ms)} \\
     \midrule
+      Loopback      & 40,913 &  0.06 & 20 \\
       Docker        & 19,321 &  0.12 & 15 \\
       Enclave       & 16,466 &  0.06 &  9 \\
       Nitriding-nrp &  2,288 &  3.74 & 53 \\
       Nitriding     &  1,214 &  7.63 & 63 \\
     \bottomrule
     \end{tabular}
-    \caption{Using 100 concurrent requests and 100,000 requests in total.}
+    \caption{The number of HTTP requests per second when making requests from
+    ten threads in parallel, and 100,000 requests in total.}%
     \label{fig:latency-msmts}
 \end{table}
 
@@ -189,12 +205,11 @@ empirical CDF of the same latency measurements for our three test setups.
 \begin{figure}[t]
     \centering
     \input{diagrams/latency-cdf/latency-cdf.tex}
-    \label{fig:latency-cdf}
     \caption{The empirical CDF of the latency distributions of our three test
-      setups.}
+      setups.}\label{fig:latency-cdf}
 \end{figure}
 
-\subsection{Application throughput}
+\subsection{Application throughput}%
 \label{sec:throughput}
 
 Next, we measure the throughput that we can achieve over the VSOCK interface.
@@ -219,26 +234,3 @@ played smoothly, and there was no perceivable latency impact when browsing the
 Web.  We believe that the high throughput and low latency, coupled with this
 anecdotal user experience report suggests that our framework is suitable for
 demanding and latency-sensitive networking applications.
-
-% \subsection{Operational Experience}
-% \label{sec:operations}
-%
-%
-% \begin{itemize}
-%     \item We deployed application X on YYYY-MM-DD.
-%
-%     \item How many clients were involved?  How many requests per second did
-%     they make?
-%
-%     \item We published a blog post.  Discuss user reception.
-%
-%     \item Discuss how useful we found the system in the context of
-%     anti-fraud.
-%
-%     \item Discuss operational issues and gotchas.
-% \end{itemize}
-
-\subsection{Synchronization latency}
-\label{sec:synclatency}
-
-\phw{Measure how fast enclaves can sync their key material.}
