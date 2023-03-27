@@ -4,15 +4,15 @@
 We now discuss \tool{}'s design.  We start by laying out the involved parties
 and their trust assumptions (\S~\ref{sec:trust-assumptions}), followed by an
 overview of our system (\S~\ref{sec:overview}).  We then discuss the two major
-aspects of our tool kit: the build system (\S~\ref{sec:build-system}) and
-\tool{} itself~(\S~\ref{sec:framework}).
+aspects of our tool kit: the reproducible build system
+(\S~\ref{sec:build-system}) and \tool{} itself~(\S~\ref{sec:framework}).
 
 \subsection{Trust assumptions}
 \label{sec:trust-assumptions}
 
-Our setting has three participants that have the following trust assumptions:
+Our setting has three participants that make the following trust assumptions:
 %
-The \emph{service provider} runs a service for its clients.  As part of its
+The \emph{service provider} runs a service for clients.  As part of its
 operations, the service provider wants to process sensitive client information.
 
 The \emph{client} is a user of the service provider.  It does not trust the
@@ -326,36 +326,31 @@ illustrated in Figure~\ref{fig:key-synchronization}.
   \label{fig:key-synchronization}
 \end{figure}
 
-\begin{enumerate}
+\emph{First}, once a new enclave is spun up, it queries the DNS SRV record of
+the FQDN that is hard-coded in the enclave, e.g., example.com.  The DNS resolver
+will return the record, containing a list of enclaves that are already running
+and initialized.  The new enclave picks a random enclave from the list and
+initiates key synchronization.
 
-  \item Once a new enclave is spun up, it queries the DNS SRV record of the FQDN
-    that is hard-coded in the enclave, e.g., example.com.  The DNS resolver will
-    return the record, containing a list of enclaves that are already running
-    and initialized.  The new enclave picks a random enclave from the list and
-    initiates key synchronization.
+\emph{Second}, the new enclave asks the existing enclave for a random nonce,
+$\textrm{nonce}_o$.  Each enclave caches $\textrm{nonce}_o$ for only one minute
+to mitigate denial-of-service attacks.
 
-  \item The new enclave asks the existing enclave for a random nonce,
-    $\textrm{nonce}_o$.  Each enclave caches $\textrm{nonce}_o$ for only one
-    minute to mitigate denial-of-service attacks.
-
-  \item The new enclave now requests the key material from the existing enclave.
-    As part of the request, it provides its attestation document that contains
-    $\textrm{nonce}_o$ (to prove freshness to the existing enclave);
-    $\textrm{nonce}_n$ (the existing enclave is expected to add this nonce to
-    its attestation document); and $K_n$ (a NaCl public key~\cite{nacl} to which
-    the key material should be encrypted).  Upon receipt of the new enclave's
-    attestation document, the existing enclave verifies the attestation
-    document's signature and ensures that the new enclave is running the same
-    code, i.e., the image ID that uniquely identifies the enclave
-    image is identical.  Once the existing enclave is convinced that it is
-    dealing with a genuine new enclave, it creates an attestation document by
-    including $\textrm{nonce}_n$ (to prove freshness to the new enclave) and
-    $\textsf{Enc}(K_n, s)$---the key material $s$ is encrypted using the public
-    key that the new enclave provided in the request.  Finally, the new enclave
-    verifies the attestation document, decrypts the key material, and uses it to
-    finish bootstrapping.
-
-\end{enumerate}
+\emph{Third}, the new enclave now requests the key material from the existing
+enclave.  As part of the request, it provides its attestation document that
+contains $\textrm{nonce}_o$ (to prove freshness to the existing enclave);
+$\textrm{nonce}_n$ (the existing enclave is expected to add this nonce to its
+attestation document); and $K_n$ (a NaCl public key~\cite{nacl} to which the key
+material should be encrypted).  Upon receipt of the new enclave's attestation
+document, the existing enclave verifies the attestation document's signature and
+ensures that the new enclave is running the same code, i.e., the image ID that
+uniquely identifies the enclave image is identical.  Once the existing enclave
+is convinced that it is dealing with a genuine new enclave, it creates an
+attestation document by including $\textrm{nonce}_n$ (to prove freshness to the
+new enclave) and $\textsf{Enc}(K_n, s)$---the key material $s$ is encrypted
+using the public key that the new enclave provided in the request.  Finally, the
+new enclave verifies the attestation document, decrypts the key material, and
+uses it to finish bootstrapping.
 
 % Security considerations.
 The security of key synchronization is paramount.  We take advantage of mutual
@@ -401,7 +396,7 @@ any software configuration from the user.  Service providers can work around
 this shortcoming by exposing an authenticated HTTP handler that take as input
 arbitrary data that updates the enclave's state.  Consider a system that takes
 as input client IP addresses, anonymizes them, and forwards the anonymized
-addresses to a back end (cf. \S~\ref{sec:tokenization}).  The service provider
+addresses to a back end.  The service provider
 now wants to compare submitted IP addresses to a confidential deny list.  If
 however the deny list is hard-coded in the publicly available enclave
 application, it is readily visible to anyone.  The service provider can solve
@@ -420,7 +415,7 @@ trust an enclave whose code can change at runtime.  We therefore argue that an
 HTTP handler for the purpose of ingesting secrets must be constrained to a point
 that only data of a well-defined type can be ingested.
 
-\subsubsection{An example}
+\subsubsection{A basic example}
 \label{sec:example}
 
 Figure~\ref{fig:example} illustrates how an enclave application (called
@@ -442,8 +437,7 @@ the application builds reproducibly, it is possible to run it inside an enclave
     COPY enclave-app /bin/
     COPY start.sh /bin/
 
-    CMD ["start.sh"]
-    \end{lstlisting}
+    CMD ["start.sh"]\end{lstlisting}
     \caption{A Dockerfile that embeds \tool{} along with the enclave
       application, \texttt{enclave-app}.}
     \label{fig:dockerfile}
@@ -461,8 +455,7 @@ the application builds reproducibly, it is possible to run it inside an enclave
       -appwebsrv "http://127.0.0.1:8080" &
 
     # Launch the application.
-    enclave-app
-    \end{lstlisting}
+    enclave-app\end{lstlisting}
     \caption{The start.sh shell script launches \tool{} in the background,
     followed by launching the enclave application}
     \label{fig:start}
