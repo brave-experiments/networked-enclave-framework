@@ -7,14 +7,14 @@ their security properties are attractive, Nitro enclaves are difficult to
 write code for and are not meant to be used as a networked service, which
 greatly limits their potential.
 %
-In this paper, we built a \emph{\tool}---a tool kit that allows for convenient and
+  In this paper, we built \emph{\tool{}}---a tool kit that allows for convenient and
 flexible use of Nitro enclaves by abstracting away complex aspects like remote
 attestation and end-to-end encryption between an enclave and a remote client.
 %
-We demonstrate the practicality of our framework by designing and implementing
-two novel systems that solve real-world problems: an enclave-enabled Tor bridge
-and a system for ``infrastructure transparency,'' i.e. securely making public
-the configuration of, say, cloud providers.
+We demonstrate the practicality of \tool{} by designing and implementing three
+novel systems that solve real-world problems: an enclave-enabled Tor bridge, an
+enclave-enabled Web browser, and a system for ``infrastructure transparency'',
+which securely makes public the configuration of, say, cloud providers.
 %
 Performance evaluations and our practical experience suggests that \tool{}
 enables quick prototyping, is flexible enough to accommodate different use

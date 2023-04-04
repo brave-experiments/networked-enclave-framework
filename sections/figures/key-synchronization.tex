@@ -1,42 +1,41 @@
 \begin{tikzpicture}[node distance=20pt]
 
-  \node [draw,
-         align=center,
-         fill=black!20!gray,
-         minimum height=70pt] (enclave2) {\color{white}New\\\color{white}enclave};
-  \node [draw,
-         align=center,
-         fill=black!20!gray,
-         minimum height=70pt,
-         right=140pt of enclave2] (enclave1) {\color{white}Original\\\color{white}enclave};
-  \node [draw,
-         densely dotted,
-         label=below left:Virtual network,
-         fit=(enclave1) (enclave2)] {};
+  \def\dnsright{0.1}
+  \def\newleft{3.15}
+  \def\newright{3.35}
+  \def\origleft{6.9}
 
-  \node [draw,
-         above=of enclave2] (resolver) {DNS resolver};
+  %               x,    y      x,    y
+  \draw [dotted] (0,    0) -- (0,    2.75);
+  \draw [dotted] (3.25, 0) -- (3.25, 2.75);
+  \draw [dotted] (7,    0) -- (7,    2.75);
+
+  \node [align=center] at (0,    3.25) {DNS\\resolver};
+  \node [align=center] at (3.25, 3.25) {New\\enclave};
+  \node [align=center] at (7,    3.25) {Original\\enclave};
 
   % New enclave discovers existing enclaves via DNS.
-  \draw [-latex] ([xshift=3pt]enclave2.north) -- ([xshift=3pt]resolver.south)
-        node [midway, right] {Request DNS SRV records};
-  \draw [latex-] ([xshift=-3pt]enclave2.north) -- ([xshift=-3pt]resolver.south);
+  \draw [-latex] (\newleft, 2.5) -- (\dnsright, 2.25)
+        node [midway, align=center, fill=white]
+        {\footnotesize SRV example.com};
+  \draw [-latex] (\dnsright, 2) -- (\newleft, 1.75)
+        node [midway, align=center, fill=white]
+        {\footnotesize Records};
 
-  % New enclave asks original enclave for nonce.
-  \draw [-latex] ([yshift=30pt]enclave2.east) -- ([yshift=25pt]enclave1.west)
+  \draw [-latex] (\newright, 1.75) -- (\origleft, 1.5)
         node [midway, fill=white, align=center]
-        {\emph{Request nonce}};
-  \draw [latex-] ([yshift=15pt]enclave2.east) -- ([yshift=20pt]enclave1.west)
+        {\footnotesize Request nonce};
+  \draw [-latex] (\origleft, 1.25) -- (\newright, 1)
         node [midway, fill=white, align=center]
-        {$\textrm{nonce}_o$};
+        {\footnotesize $\textrm{nonce}_o$};
 
   % New enclave asks for keys.
-  \draw [-latex] (enclave2.east) -- ([yshift=-5pt]enclave1.west)
+  \draw [-latex] (\newright, 0.75) -- (\origleft, 0.5)
         node [midway, fill=white, align=center]
-        {\emph{Request keys}\\$A_{n}(\textrm{nonce}_o, K_n, \ \textrm{nonce}_n$)};
+        {\footnotesize $A_{n}(\textrm{nonce}_o, K_n, \ \textrm{nonce}_n$)};
 
-  \draw [latex-] ([yshift=-30pt]enclave2.east) -- ([yshift=-25pt]enclave1.west)
+  \draw [-latex] (\origleft, 0.25) -- (\newright, 0)
         node [midway, fill=white, align=center]
-        {$A_{o}(\textrm{nonce}_n, \textsf{Enc}(K_n, s))$};
+        {\footnotesize $A_{o}(\textrm{nonce}_n, \textsf{Enc}(K_n, s))$};
 
 \end{tikzpicture}

@@ -1,0 +1,71 @@
+\section{A basic example}%
+\label{sec:example}
+
+Figure~\ref{fig:example} illustrates how an enclave application (called
+\texttt{enclave-app}) can run alongside \tool{}.  Figure~\ref{fig:dockerfile}
+shows a Dockerfile that adds \tool{}, the enclave application, and a start
+script to the image, followed by launching the start script, which is
+illustrated in Figure~\ref{fig:start}.  All the script does is first launch
+\tool{} in the background followed by launching the enclave application.  If
+the application builds reproducibly, it is possible to run it inside an enclave
+\emph{without modifications}.
+
+\begin{figure}[t]
+  \begin{subfigure}[b]{\linewidth}
+    \centering
+    \begin{lstlisting}
+    FROM alpine:latest
+
+    COPY nitriding /bin/
+    COPY enclave-app /bin/
+    COPY start.sh /bin/
+
+    CMD ["start.sh"]\end{lstlisting}
+    \caption{A Dockerfile that embeds \tool{} along with the enclave
+      application, \texttt{enclave-app}.}
+    \label{fig:dockerfile}
+  \end{subfigure}
+
+  \begin{subfigure}[b]{\linewidth}
+    \centering
+    \begin{lstlisting}[language=bash]
+    #!/bin/sh
+
+    # Launch nitriding in the background.
+    nitriding \
+      -fqdn "example.com" \
+      -acme \
+      -appwebsrv "http://127.0.0.1:8080" &
+
+    # Launch the application.
+    enclave-app\end{lstlisting}
+    \caption{The start.sh shell script launches \tool{} in the background,
+    followed by launching the enclave application}
+    \label{fig:start}
+  \end{subfigure}
+
+  \caption{An example of how a simple enclave application can be bundled with
+  \tool.}
+  \label{fig:example}
+\end{figure}
+
+\section{Architectural diagrams}%
+\label{sec:more-diagrams}
+
+Figure~\ref{fig:vct} illustrates the design of our enclave application which
+implements verifiable configuration transparency.
+
+\begin{figure}
+  \centering
+  \input{sections/figures/vct}
+  \caption{An overview of the enclave application that provides verfiable
+  configuration transparency.  After launching the enclave, the operator
+  configures the confidential bearer token and zone ID~(\ding{202}).  Clients
+  can then request the service provider's Cloudflare
+  configuration~(\ding{203}).  The application makes an HTTP request (containing
+  the bearer token and zone ID) to Cloudflare's API~(\ding{204}).  Finally, the
+  application asks its hypervisor for an attestation document~(\ding{205}) and
+  embeds the attestation document in the response to the client, along with
+  Cloudflare's response.}%
+  \label{fig:vct}
+\end{figure}
