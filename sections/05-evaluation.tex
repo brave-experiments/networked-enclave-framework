@@ -1,7 +1,7 @@
 \section{Evaluation}%
 \label{sec:evaluation}
 
-We evaluate our enclave framework with respect to
+We answer $RQ_2$ by evaluating our enclave framework with respect to
 security (\S~\ref{sec:security}),
 financial cost (\S~\ref{sec:cost}), and performance.  As for performance, we
 study the rate at which one can generate
@@ -17,42 +17,47 @@ expensive) instance types result in better performance.
 \subsection{Security considerations}%
 \label{sec:security}
 
-\phw{Need to make this more rigorous.}
+There are three key components to the overall security of an enclave
+application:
+(i) Amazon's Nitro system itself,
+(ii) \tool{}, and
+(iii) the application that runs on top of \tool{}.
 
-There are three key components to the overall security of enclave applications;
-(i) Amazon's Nitro enclave system itself,
-(ii) our framework, and
-(iii) the application that runs on top of our framework.
+The security foundation lies in the soundness of the design of Nitro enclaves.
+While Amazon published the conceptual design~\cite{Bean2022a}, the concrete
+hardware and software implementation is closed source.  The decision to
+allocate physically separate resources to enclaves appears promising but only
+time will tell if Nitro enclaves can resist the types of attacks that have been
+plaguing SGX.  If we assume that Nitro enclaves are acceptably secure, the next
+component is \tool{}.
 
-The very foundation of our framework's security lies in the soundness of the
-design of Nitro enclaves.  While Amazon published the conceptual design, the
-concrete hardware and software implementation remains confidential.  The
-decision to allocate physically separate resources to enclaves appears promising
-but only time will tell if Nitro enclaves can resist the types of attacks that
-have been plaguing SGX.  If we assume that Nitro enclaves are acceptably
-secure, the next critical layer is our software framework.
-
-A significant security aspect of our framework is its size; it is well
-understood that complexity is the enemy of security.  Excluding unit tests, our
-framework counts less than 1,300 lines of code and has four direct dependencies
-that are not maintained by either us or the Go project.\footnote{The
-dependencies are chi~\cite{chi} (provides an HTTP request router),
-nsm~\cite{nsm} (provides an interface to interact with the Nitro hypervisor),
-vsock~\cite{vsock} (provides an API for the VSOCK address family), and
-tenus~\cite{tenus} (provides an API to configure Linux's networking devices).}
-Four is worse than zero, but is still manageable and reasonably easy to audit in
-its entirety.  We believe that our choice of using Go and the deliberately small
-trusted computing base greatly reduces---but does not eliminate!---the attack
-surface.
+\Tool{}'s security reduces to the complexity of our code and the security of its
+cryptographic building blocks.  These building blocks are SHA-256 (to hash
+public key material that is embedded in the attestation document), the NaCl
+cryptographic library~\cite{nacl} (to implement key
+synchronization),\footnote{Specifically, we use NaCl's box API, which uses
+Curve25519, XSalsa20, and Poly1305 to encrypt and authenticate messages.} TLS in
+at least version 1.2 (to provide a secure channel between clients and the
+enclave), and Go's CSPRNG, which is seeded with randomness from the Nitro
+hypervisor.
+% ls -1 *.go | grep -v "_test.go" | xargs wc -l
+One measure of our code complexity is its size.  Excluding unit tests, \tool{}
+counts less than 1,700 lines of code and has nine direct dependencies
+that are not maintained by either us or the Go project.\footnote{Most
+dependencies provide networking functionality like a user-space TCP stack, code
+that provides a TAP interface, and a wrapper for Linux's netlink interface.}
+%
+Nine is worse than zero, but is still manageable and auditable in its entirety.
+Our choice of using Go and the (comparatively) small trusted computing base
+greatly reduces---but does not eliminate!---the attack surface.
 
 The highest layer in the software stack is the enclave application itself.  The
-biggest security threat are side channel attacks and programming bugs---both
-unintentional and intentional.  It is the application developer's
-responsibility to prevent side channel attacks and write bug-free code.  As we
-pointed out in Section~\ref{sec:limitations}, programming bugs can be
-intentional, i.e., the service provider may deliberately introduce bugs that
-leak sensitive information.  From the user's point of view, eternal vigilance
-is therefore the price of security.
+biggest security threat are side channel attacks and programming bugs.  It is
+the application developer's responsibility to prevent side channel attacks and
+write bug-free code.  As we pointed out in Section~\ref{sec:limitations},
+programming bugs can be intentional, i.e., the service provider may deliberately
+introduce bugs that leak sensitive information.  From the user's point of view,
+eternal vigilance is therefore the price of security.
 
 \subsection{Financial cost}%
 \label{sec:cost}
@@ -75,8 +80,7 @@ The fetching of attestation documents is a critical part of our framework's
 overall performance.  We built a stress test application that runs a busy loop
 for 60 seconds to request as many attestation documents as possible.  For each
 request, we ask the hypervisor to include an incrementing nonce in the
-attestation document, to avoid any speedups by caching.  We ran this stress test
-on a c5.xlarge EC2 host which comes with four CPUs and eight GiB of memory.
+attestation document, to avoid any speedups by caching.
 Table~\ref{tab:att-perf} shows the results.  We were able to obtain
 approximately 840 documents per second with the median request taking 1.1
 milliseconds to complete.
@@ -103,13 +107,13 @@ interface between an EC2 host and its Nitro enclave and (ii) the latency induced
 by \tool{}, both with and without \tool{}'s reverse proxy configuration.  We
 built a lightweight enclave application that helps us measure these latencies.
 The application implements a Web server that responds with the string ``hello
-world'' upon receiving requests for its index.  We made this application minimal
-because we're only interested in the latency \emph{before} a request reaches the
-enclave application.  We therefore also deactivate the Web server's TLS support
-and use plain HTTP for our measurements.  To simulate clients, we use the HTTP
-load test tool Baton~\cite{baton}.  Equipped with both an HTTP server and
-client, we measure the request latency to our application in five separate
-setups:
+world'' upon receiving requests for its index page.  We made this application
+minimal because we're only interested in the latency \emph{before} a request
+reaches the enclave application.  We therefore also deactivate the Web server's
+TLS support and use plain HTTP for our measurements.  To simulate clients, we
+use the HTTP load test tool Baton~\cite{baton}.  Equipped with both an HTTP
+server and client, we measure the request latency to our application in five
+separate setups:
 
 \begin{description}
   \item[Loopback] The client talks to the Web server via the loopback interface.
@@ -130,42 +134,14 @@ setups:
     tap forwarding code \emph{and} its reverse HTTP proxy.
 \end{description}
 
-We run
-Baton on the parent EC2 host and instruct it to send 100,000 requests using 10
-concurrent threads.  We had to patch Baton's source code to add VSOCK support
-(to be able to send requests directly to the enclave via the VSOCK interface)
-and to log latency percentiles.  Note that our measurements constitute a
-\emph{lower bound} of the latency that is achievable.  Real-world applications
-will exhibit higher latency because clients send their requests over the
-Internet (which adds considerable networking latency) and the enclave
+We run Baton on the parent EC2 host and instruct it to send 100,000 requests
+using 10 concurrent threads.  We had to patch Baton's source code to add VSOCK
+support (to be able to send requests directly to the enclave via the VSOCK
+interface) and to log latency percentiles.  Note that our measurements
+constitute a \emph{lower bound} of the latency that is achievable.  Real-world
+applications will exhibit higher latency because clients send their requests
+over the Internet (which adds considerable networking latency) and the enclave
 application is likely to be more complex (which adds computational latency).
-
-Figure~\ref{fig:latency-msmts} illustrates the results for our three test
-setups.  The full pipeline is able to sustain 7,500 requests per second, with a
-mean latency of 12.7 milliseconds.  Removing the proxy nearly doubles the
-requests to 14,100 per second and lowers the mean latency to 6.5.  Finally, a
-direct connection to the application---without proxy and VSOCK interface--once
-again nearly doubles the number of requests, reaching 27,900 per second, with a
-mean latency of only 3.2 milliseconds.  Figure~\ref{fig:latency-cdf} shows the
-empirical CDF of the same latency measurements for our three test setups.
-
-\begin{table}[t]
-    \centering
-    \begin{tabular}{l r r}
-    \toprule
-      Setup & C $\rightarrow$ S (Gbits/sec) & S $\rightarrow$ C (Gbit/sec) \\
-    \midrule
-      Loopback        & 57.0 & 57.0 \\
-      Docker          & 26.0 & 28.9 \\
-      Enclave         &  3.6 &  3.2 \\
-      Nitriding(-nrp) &  0.3 &  1.1 \\
-    \bottomrule
-    \end{tabular}
-    \caption{The TCP throughput measurements when running iperf3 over the
-    loopback interface, in Docker, inside an enclave, or inside an enclave using
-    nitriding.}%
-    \label{fig:iperf3}
-\end{table}
 
 \begin{table}[t]
     \centering
@@ -184,23 +160,19 @@ empirical CDF of the same latency measurements for our three test setups.
     \end{tabular}
     \caption{The number of HTTP requests per second when making requests from
     ten threads in parallel, and 100,000 requests in total.}%
-    \label{fig:latency-msmts}
+    \label{tab:latency-msmts}
 \end{table}
 
-% \begin{figure}[t]
-%     \centering
-%     \begin{tabular}{l r r r}
-%     \toprule
-%       Setup & Reqs/sec & Mean lat. (ms) & Max lat. (ms) \\
-%     \midrule
-%     Full     &  7,500 & 12.7 & 56.0 \\
-%     No proxy & 14,100 &  6.5 & 52.0 \\
-%     Direct   & 27,900 &  3.2 & 50.0 \\
-%     \bottomrule
-%     \end{tabular}
-%     \caption{Using 100 concurrent requests and 100,000 requests in total.}
-%     \label{fig:latency-msmts}
-% \end{figure}
+Table~\ref{tab:latency-msmts} illustrates the results.  The Web server can
+sustain more than 40,000 requests per second over the loopback interface.  When
+run inside a Docker container, we can achieve only half of that.  Running the
+Web server inside an enclave instead of in a Docker container results in a 15\%
+decrease in requests.  \Tool{} without a reverse proxy can sustain 14\% of the
+enclave setup, and \tool{} with reverse proxy results in 1,214 requests per
+second---7\% of what's possible in the pure-enclave setup.  We attribute this
+slowdown primarily to our use of a user-space TCP stack.
+Figure~\ref{fig:latency-cdf} shows the empirical CDF of the response latency
+for our Web request measurement.
 
 \begin{figure}[t]
     \centering
@@ -209,28 +181,40 @@ empirical CDF of the same latency measurements for our three test setups.
       setups.}\label{fig:latency-cdf}
 \end{figure}
 
+\begin{table}[t]
+    \centering
+    \begin{tabular}{l r r}
+    \toprule
+      Setup & C $\rightarrow$ S (Gbits/sec) & S $\rightarrow$ C (Gbit/sec) \\
+    \midrule
+      Loopback        & 57.0 & 57.0 \\
+      Docker          & 26.0 & 28.9 \\
+      Enclave         &  3.6 &  3.2 \\
+      Nitriding(-nrp) &  0.3 &  1.1 \\
+    \bottomrule
+    \end{tabular}
+    \caption{The TCP throughput measurements when running iperf3 over the
+    loopback interface, in Docker, inside an enclave, or inside an enclave using
+    nitriding.}%
+    \label{tab:iperf3}
+\end{table}
+
 \subsection{Application throughput}%
 \label{sec:throughput}
 
 Next, we measure the throughput that we can achieve over the VSOCK interface.
 To that end, we use a VSOCK-enabled fork of the iperf3 performance measurement
-tool in git commit ~\cite{iperf-vsock}.  iperf3 measures the throughput of a networking link
-using a client/server model.  In our experiment, we start an iperf3 server
-instance inside the enclave and the corresponding client instance on the parent
-EC2 host.\footnote{The command that we ran on the server was
-``\texttt{iperf3 -{}-vsock -s}'' and on the client ``\texttt{iperf3 -{}-vsock -c
-4}.''} The client then talks to the server via the VSOCK interface and
-determines the maximum possible throughput.  In this setup, iperf3 measured a
-throughput of 4.09 GBit/s.  For comparison, when running both the iperf3 client
-\emph{and} server on the EC2 host---which effectively measures the
-throughput of the EC2 host's loopback interface---we achieve 55.5 GBit/s of
-throughput.
+tool in git commit \texttt{9245f9a}~\cite{iperf-vsock}.  iperf3 measures the
+throughput of a networking link using a client/server model.  In our
+experiment, we start an iperf3 server instance inside the enclave and the
+corresponding client instance on the parent EC2 host.\footnote{The command that
+we ran on the server was ``\texttt{iperf3 -{}-vsock -s}'' and on the client
+``\texttt{iperf3 -{}-vsock -c 4}.''} The client then talks to the server via
+the VSOCK interface and determines the maximum possible throughput.
 
-To develop intuition on the perceived network performance of Nitro enclaves, we
-built an enclave application that acts as a SOCKS proxy.  We then configured a
-browser to use this enclave-enabled SOCKS proxy and browsed HD videos on
-YouTube.  We found that the experience was seamless: videos loaded quickly,
-played smoothly, and there was no perceivable latency impact when browsing the
-Web.  We believe that the high throughput and low latency, coupled with this
-anecdotal user experience report suggests that our framework is suitable for
-demanding and latency-sensitive networking applications.
+When running both the iperf3 client \emph{and} server on the EC2 host---which
+effectively measures the throughput of the EC2 host's loopback interface---we
+achieve 57 GBit/s of throughput.  Running the iperf3 server inside a Docker
+container reduces throughput to approximately 27 Gbit/s.  The enclave interface
+further limits throughput to 3 Gbit/s while \tool{} results in approximately
+0.3 Gbit/s.

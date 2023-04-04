@@ -1,13 +1,38 @@
-\section{Limitations}
+\section{Limitations}%
 \label{sec:limitations}
 
 We conclude the discussion of our framework by summarizing its limitations.
 
 % Everybody needs to trust Amazon.
-An obvious limitation is the reliance of our framework on Amazon, which acts as the root of trust.  We mentioned in Section~\ref{sec:trust-assumptions} that all parties must trust Amazon.  Note that this is not a new limitation of secure enclaves---SGX-based applications must trust Intel while TrustZone-based applications must trust ARM.  Despite the lack of alternatives, placing one's trust in a single corporation's proprietary technology is problematic.
+An obvious limitation is the reliance of our framework on Amazon, which acts as
+the root of trust.  We mentioned in Section~\ref{sec:assumptions-overview} that
+all parties must trust Amazon.  Note that this is not a new limitation of secure
+enclaves---SGX-based applications must trust Intel while TrustZone-based
+applications must trust ARM.  Despite the lack of alternatives, placing one's
+trust in a single corporation's proprietary technology is problematic.
 
 % Laypeople cannot audit enclave code.
-Our system fundamentally relies on at least some users auditing the service provider's application that runs in a secure enclave.  Needless to say, not all users have the skills to audit the service provider's application and convince themselves that the code is sound.  In fact, even among the subset of users that are programmers, only a fraction may feel comfortable auditing source code for vulnerabilities.  So what are the non-programmers to do?  We envision users to congregate in forums where matters related to the service providers are discussed.  A tech-savvy subset of the users is going to organize code reviews and make public their findings.  Non-technical users may then trust other users that audited the source code, but this is no different from most other software: nobody audits all the software that they use, ranging from the kernel to the myriad of user space applications, even when source code is available.
+Our system fundamentally relies on at least some users auditing the service
+provider's application that runs in a secure enclave.  Needless to say, not all
+users have the skills to audit the service provider's application and convince
+themselves that the code is sound.  In fact, even among the subset of users that
+are programmers, only a fraction may feel comfortable auditing source code for
+vulnerabilities.  So what are the non-programmers to do?  We envision users to
+congregate in forums where matters related to the service providers are
+discussed.  A tech-savvy subset of the users is going to organize code reviews
+and make public their findings.  Non-technical users may then trust other users
+that audited the source code, but this is no different from most other software:
+nobody audits all the software that they use, ranging from the kernel to the
+myriad of user space applications, even when source code is available.
 
 % One can hide bugs in plain sight.
-The Underhanded C Coding Contest~\cite{underhanded-c} was about implementing benign-looking code that was secretly malicious.  The contest attracted numerous impressive submissions which showed that it can be surprisingly difficult to find bugs \emph{even if one knows} that there is a bug in a given piece of code.  Analogously, the service provider could try to hide subtle, yet critical bugs in the code to exfiltrate information from the enclave.  On top of that, if the service provider ever gets caught, it may have plausible deniability and pretend that the exfiltration bug was an honest programming error.  While we are unable to solve this class of attacks, we can mitigate it by keeping the trusted computing base in the enclave as small as possible.
+The Underhanded C Coding Contest~\cite{underhanded-c} was about implementing
+benign-looking code that was secretly malicious.  The contest attracted numerous
+impressive submissions which showed that it can be surprisingly difficult to
+find bugs \emph{even if one knows} that there is a bug in a given piece of code.
+Analogously, the service provider could try to hide subtle, yet critical bugs in
+the code to exfiltrate information from the enclave.  On top of that, if the
+service provider ever gets caught, it may have plausible deniability and pretend
+that the exfiltration bug was an honest programming error.  While we are unable
+to solve this class of attacks, we can mitigate it by keeping the trusted
+computing base in the enclave as small as possible.

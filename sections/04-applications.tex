@@ -1,18 +1,17 @@
 \section{\Tool{}-based applications}%
 \label{sec:applications}
 
-We demonstrate \tool{}'s practicality by building three applications on top of
-it, each a research contribution in its own right.
+We now answer research question $RQ_3$ on what new enclave applications
+emerge from \tool{}.  We do so by building three applications on top of it, each
+a research contribution in its own right.
 %
 First, we build an application that allows a service provider to disclose its
 infrastructure configuration in a user-verifiable way, thus eliminating the
 trust that users have to have in third-party infrastructure (\S~\ref{sec:vct}).
 %
-Second, we demonstrate 
-
-the operation of a Tor bridge inside an enclave, which
-mitigates several classes of attacks that the Tor network has struggled with in
-the past (\S~\ref{sec:tor-bridge}).
+Second, we launch a Tor bridge inside an enclave, which mitigates several
+classes of attacks that the Tor network has struggled with in the past
+(\S~\ref{sec:tor-bridge}).
 %
 Third, we show that \tool{} can handle computationally expensive workloads by
 moving a Web browser into an enclave and letting users interact with it via a
@@ -32,11 +31,12 @@ an enclave application that discloses the service provider's configuration in a
 user-verifiable way, eliminating the trust that users have to place in the
 configuration of third-party infrastructure.
 
-The idea, illustrated in Figure~\ref{fig:vct}, consists of a lightweight
-enclave application whose sole purpose is to answer client requests by querying
-the API of the third-party infrastructure provider.  We built our
-proof-of-concept implementation for Cloudflare but the code can easily be
-adapted to support other providers.
+The idea, illustrated in Figure~\ref{fig:vct} in
+Appendix~\ref{sec:more-diagrams}, consists of a lightweight enclave application
+whose sole purpose is to answer client requests by querying the API of the
+third-party infrastructure provider.  We built our proof-of-concept
+implementation for Cloudflare but the code can easily be adapted to support
+other providers.
 
 To interact with Cloudflare's API endpoint, one needs a confidential bearer
 token for authentication and a semi-confidential zone
@@ -54,21 +54,6 @@ private HTTP endpoint from the EC2 host.  Users have no reason to be concerned
 about this secret endpoint because the enclave application's source code
 clearly shows that the secret values are only used as part of the API request
 to Cloudflare.
-
-\begin{figure}[t]
-  \centering
-  \input{sections/figures/vct}
-  \caption{An overview of the enclave application that provides verfiable
-  configuration transparency.  After launching the enclave, the operator
-  configures the confidential bearer token and zone ID~(\ding{202}).  Clients
-  can then request the service provider's Cloudflare
-  configuration~(\ding{203}).  The application makes an HTTP request (containing
-  the bearer token and zone ID) to Cloudflare's API~(\ding{204}).  Finally, the
-  application asks its hypervisor for an attestation document~(\ding{205}) and
-  embeds the attestation document in the response to the client, along with
-  Cloudflare's response.}%
-  \label{fig:vct}
-\end{figure}
 
 Clients communicate with this enclave application via a single endpoint, which
 returns the JSON-encoded Cloudflare configuration.  When calling this endpoint,
@@ -128,8 +113,7 @@ bridge instead of a relay because bridges can be configured to remain private
 and therefore cause no harm to the network in case our implementation had
 bugs.}
 
-\subsubsection{Proof-of-concept deployment}
-
+\textbf{Proof-of-concept deployment}:
 Running the Tor executable inside an enclave is straightforward: the Dockerfile
 and startup script are nearly identical to Listing~\ref{fig:example}.  Remote
 attestation however is more complicated.  Ideally, Tor clients would attest the
@@ -157,15 +141,10 @@ distributed directory authorities.  Changes to the network consensus are
 complex and need to be addressed in the protocol specification and Tor's
 reference implementation.
 
-\subsubsection{Performance evaluation}
-
-\phw{Provide some sort of performance evaluation to please the bean counters.}
-
-\subsubsection{Comparison to SGX-Tor}
-
+\textbf{Comparison to SGX-Tor}:
 In their NSDI'17 paper, Kim et al. augmented the Tor code with SGX, thus giving
 clients, relays, and directory authorities the ability to remotely verify each
-other~\cite{Kim2017a}.  Our approach is similar but differs in the following
+other~\cite{Kim2017a}.  Our approach is differs in the following
 aspects:
 %
 Clients that seek to verify an SGX enclave's attestation document need to talk
@@ -173,7 +152,6 @@ to Intel's attestation service, which brings with it an array of privacy
 problems~\cite[\S~1.2]{Chen2019a}.  With Nitro enclaves, clients can verify an
 attestation document offline, provided that they have a copy of Amazon's root CA
 public key.
-
 % End-to-end correlation attacks.
 Next, the authors envision the entire Tor network to take advantage of SGX,
 which is not feasible in our approach: Nitro enclaves can only run in
@@ -181,170 +159,68 @@ Amazon-controlled AWS.  If all Tor relays ran inside AWS, Amazon would see both
 traffic entering and exiting the network---ideal conditions for end-to-end
 correlation attacks.  We therefore believe that only select Tor bridges benefit
 from running in \tool{}, lest anonymity is jeopardized.
-
 % Complexity of making it work.
-As for practicality, Kim et al. had to go to great lengths to make Tor support
-SGX~\cite[\S~5]{Kim2017a}.  Our proof-of-concept implementation took one
-afternoon.  Finally, since Kim et al.'s paper was published, Intel announced the
-discontinuation of SGX support for consumer-grade Core CPUs, which further
-limits the number of SGX-capable Tor clients.
+As for practicality, Kim et al. had to go to great lengths to patch Tor to
+support SGX~\cite[\S~5]{Kim2017a}.  Our proof-of-concept implementation took
+one afternoon.  Finally, since Kim et al.'s paper was published, Intel
+announced the discontinuation of SGX support for consumer-grade Core CPUs,
+which further limits the number of SGX-capable Tor clients.
 
-\phw{Elaborate on side channels that the EC2 host can exploit.}
-
-\if 0
-\subsection{IP address tokenization}
-\label{sec:tokenization}
-
-Service providers often have an incentive to record and analyze client IP
-addresses to prevent fraud.  IP addresses can reveal an array of sensitive
-information to the service provider, like the city that the user is located in.
-Users therefore prefer that the service provider does not see their IP address.
-We built an IP address tokenization system on top of \tool{} that provides
-user-verifiable guarantees that the service provider anonymized the client's IP
-address \emph{without seeing it in plain text}.  The service provider can then
-run its anti-fraud logic over anonymized IP addresses without suffering a
-significant loss in utility.
-
-\begin{figure}[t]
-\centering
-\input{sections/figures/pseudonymizer-design}
-\caption{Clients communicate with a service that's available behind a
-  third-party TCP proxy whose purpose is (among other things) to drop client IP
-  addresses, so the service never sees them.  The proxy is configured to mirror
-  incoming client requests \emph{with} IP address to the enclave, where
-  addresses are pseudonymized and finally forwarded to a back end for analysis.}
-\label{fig:address-anonymizer}
-\end{figure}
-
-Figure~\ref{fig:address-anonymizer} illustrates our system's architecture.
-Clients talk to a service that is fronted by a third-party reverse proxy.  The
-reverse proxy is configured to strip client IP addresses before forwarding
-requests.  The reverse proxy is also configured to duplicate incoming requests
-to the enclave application.
-% FIXME
-
-
-Our first application is the system that originally motivated us to build the
-enclave framework. Consider a service provider that offers various services to
-its users.  The service provider seeks to know as little as possible about its
-users, which means that it doesn't capture and store any of its users' IP
-addresses.  IP addresses are however an important signal in the service
-provider's fight against a subset of its users that commit fraud.  This
-constitutes a conundrum: Should the service provider collect all its users' IP
-addresses to strengthen its anti-fraud efforts?  Or continue to discard the
-addresses, and tolerate the fraud?
-
-This section presents an application that strikes a balance between these two
-extremes; an IP address pseudonymization system that can verifiably pseudonymize
-IP addresses.  The service provider can then run its anti-fraud logic over
-pseudonymized IP addresses rather than real ones.  While some information is
-lost in the process, we argue that what's most important---the relationship
-between IP addresses---can be preserved thanks to our use of the Crypto-PAn
-scheme that Xu et al. presented in their 2001 paper~\cite{Xu01a}.  Crypto-PAn
-encrypts both IPv4 and IPv6 addresses by implementing a 1:1 mapping $f$ that is
-keyed by $k$ from an IP address to its pseudonymized equivalent while
-\emph{preserving the address's prefix}, i.e., two IP addresses that share an
-$n$-bit prefix also share an $n$-bit prefix after pseudonymization as
-illustrated by the following example:
-
-\begin{align}
-f(k, \textrm{``\underline{10.0.0.}1''})\phantom{23} = \textrm{``\underline{242.32.192.}193''} \\
-f(k, \textrm{``\underline{10.0.0.}123''}) = \textrm{``\underline{242.32.192.}154''}
-\end{align}
-
-Figure~\ref{fig:address-anonymizer} illustrates the system design.  Clients
-periodically communicate with a service behind a reverse TLS proxy whose
-job---among other things---is to hide client IP addresses from the service.  The
-proxy is configured to mirror incoming client requests to the enclave, but with
-client IP addresses intact, in the form of a custom HTTP header like
-\texttt{X-Client-Addr: 1.2.3.4}.  The service is interactive, and responds to
-the client, but the enclave is passive, and simply consumes the requests.
-Recall that the (untrusted) EC2 host that hosts the enclave is unable to see
-the client's IP address because the TLS proxy establishes a TLS session that's
-terminated \emph{inside} the enclave.  The pseudonymizer takes as input client
-requests, extracts the IP address that the proxy inserted from the HTTP header,
-pseudonymizes them, and forwards pseudonymized addresses in batches to the
-configured back end.  Components in dark gray are under the service provider's
-control.
-
-
-One problem however remains: how do clients know that the TLS proxy is in fact
-configured to discard client IP addresses before forwarding requests to the
-service?  Unfortunately, cloud providers don't offer satisfying solutions for
-this problem but some cloud providers allow for the creation of roles whose
-permissions are configurable.  The service provider can create a read-only role
-in the TLS proxy's configuration interface and publish the credentials for this
-role.  Doubtful users can then log in to this role and verify that the TLS proxy
-is configured to discard IP addresses when forwarding requests to the service.
-As long as the TLS proxy operator is a neutral third party with no incentive to
-lie, which is typically the case, both the client and service provider can trust
-it.  We acknowledge that this is not an elegant solution but a mere hack, to
-work around the shortcoming of Nitro enclaves not having a networking interface.
-If enclaves had a networking interface that could not be monitored by the
-untrusted EC2 host, clients could directly talk to the enclave, obviating the
-need for a TLS proxy that hides client IP addresses from the EC2 host.
-
-\paragraph{Side channels}
-The untrusted EC2 host never sees client IP address in plaintext
-but it can exploit timing and volume side channels to infer information about
-the encrypted requests that the TLS proxy forwards to the enclave.  We close
-this side channel by adding code to the enclave application which queues
-pseudonymized IP addresses until two conditions are true: (\emph{i}) we have at
-least $n$ pseudonymized addresses, and (\emph{ii}) at least $t$ minutes have
-passed.
-
-\paragraph{Key rotation} A single pseudonymous IP address without context cannot
-be reversed and reveals nothing about its corresponding plaintext IP address but
-that changes if the service provider expects the client to repeatedly report its
-IP address to the enclave.  For example, a sequence of pseudonymized IP
-addresses can reveal either that (\emph{i}) the client has not changed its IP
-address, or (\emph{ii}) the client changed its IP address but is likely to use
-the same ISP (e.g., if the /24 prefix remains the same), or (\emph{iii}) the
-client changed IP addresses \emph{and} ISPs (e.g., if the prefixes of the
-pseudonymous IP addresses share less than, say, eight bits).  While this is
-useful information for anti-fraud operations,\footnote{For example, a service
-provider would deem a client that constantly changed ISPs suspicious; it is
-likely to use proxies to connect to the service provider's infrastructure.} it
-also reveals information about a given client's location, and service providers
-may want to err on the side of privacy instead.  We therefore added a mechanism
-for periodic key rotation, so a given client's pseudonymized IP addresses are
-only meaningful within a given rotation period.  According to the results of
-Padmanabhan et al., we believe that a key rotation period of three weeks strikes
-a useful balance between privacy for the client and usefulness for the service
-provider~\cite[\S~3.2]{Padmanabhan20a}: several ISPs re-assign many of their
-users' IP addresses in less than---or up to---two weeks.
-
-In the final step, the enclave submits the client's pseudonymized IP address and
-a hash of the key to the service provider's back end, where anti-fraud logic is
-implemented.  The implementation details of both the back end and its anti-fraud
-logic are beyond the scope of this paper.
-
-\paragraph{Implementation}
-Our pseudonymization service counts approximately 1,100 lines of code, including
-comments and tests.  It is important to keep the source code small for both
-security and transparency: a large code base is more likely to have
-security-critical bugs and is also more difficult for users to audit.
-
-\paragraph{Alternative pseudonymization}
-In addition to Crypto-PAn, we implemented a second pseudonymization method that
-is based on HMAC-SHA-256.  Like Crypto-PAn, the HMAC is keyed by a 160-bit
-secret that the enclave generates when first bootstrapping.  Unlike Crypto-PAn
-however, the HMAC-based method does not preserve the prefixes of IP addresses:
-two IP addresses that differ in only a single bit will result in entirely
-different hashes.  On the privacy/utility spectrum, the HMAC-based method
-therefore leans more toward privacy.
-\fi
-
-\subsection{In-enclave Web browser}%
+\subsection{An in-enclave Web browser}%
 \label{sec:browser}
 
-advantages:
-+ enabling thin clients
-+ isolate browser from the client's system
+The previous enclave application focused on a low-latency, high-throughput use
+case.  We now build an application that requires low latency in addition to
+being \emph{computationally demanding}: we move a modern Web browser into an
+enclave, thus isolating the browser from its user's desktop environment.
+% Advantages
+If a browser is compromised by, say, a malicious Web site, then the malicious
+code is constrained to the enclave, unable to interact with the user's desktop
+environment.  In addition, users benefit from not having to provide the
+ever-increasing computational resources to run the browser.
+% Disadvantages
+The downside of this approach is that the enclave's EC2 host gets to see the
+browser's entire traffic.  The pervasive deployment of HTTPS helps protect page
+contents from the EC2 host's prying eyes and one could configure the browser to
+use DNS-over-HTTPS to further protect DNS traffic.  A more comprehensive
+solution is to configure the browser to route its traffic over the Tor network.
 
-disadvantages:
-- interaction with file system not straightforward
+% How we built this
+We start with an Ubuntu Docker image, which we extend by
+installing basic X11 graphical utilities, OpenSSH, TigerVNC, the i3 window
+manager, and a Chromium browser, all via Ubuntu's package manager.\footnote{We
+used Ubuntu 20.04.4 from docker.io.}  We used OpenSSH port forwarding to tunnel
+TigerVNC's TCP traffic, which prevents the EC2 host from spying on VNC traffic.
+The enclave's SSH public key acts as the root of trust, and it lives and dies
+inside the enclave.  We configure \tool{} to add a hash over the public key to
+the attestation document.  Before establishing an SSH connection, clients fetch
+the enclave's attestation document to learn what SSH public key to expect.
+%
+By default, AWS's tooling for Nitro enclaves assumes applications smaller than
+what we need for a remote desktop environment.  Depending on the instance size
+and tool version, we sometimes had out-of-memory errors converting container
+images to enclave images.  By default, the enclave manager allows a maximum
+allocation of 512 MB to each container, which isn't enough to run most graphical
+desktop software.  That limit needs to be raised.
 
-comparison to other approaches
-+ cloudflare's thing~\cite{cf-browser-isolation}
-+ webenclave~\cite{Wang2021a}
+There is plenty of room for improvement, both in reducing the enclave's image
+size and in reducing the latency that our VNC server induces.  One can also take
+advantage of AWS's numerous data centers by launching the browser enclave in a
+region that is close to the user, to further minimize latency.
+
+\textbf{Subjective user experience}:
+Upon using a VNC client to interact with the in-enclave Web browser, we found
+that navigation was relatively painless but large screen updates were spread
+over a noticeable amount of time, usually obscuring the underlying animation.
+Video played at less than full framerate, and VNC doesn't support audio
+playback.  However, the user-perceptible latency is dominated by the round-trip
+time between the client and the enclave.  In any case, this application
+demonstrates that the enclave itself is no barrier to achieving similar
+performance to any other remote desktop service.
+
+\textbf{Alternative approaches}:
+Wang et al.'s WebEnclave work sets out to protect Web sites from malicious
+browser extensions: Web developers can use the \texttt{<web-enclave>} tag to
+instruct the browser to execute code inside WebEnclave~\cite{Wang2021a}.  Unlike
+WebEnclave, our application protects the user's operating system from the
+browser, instead of Web pages from browser extensions.
