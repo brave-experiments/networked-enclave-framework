@@ -1,49 +1,25 @@
 \section{Background}%
 \label{sec:background}
 
-We begin by providing an overview of secure enclaves in general
-(\S~\ref{sec:enclaves}), followed by the AWS Nitro system (\S~\ref{sec:nitro})
-and Nitro enclaves (\S~\ref{sec:nitro-enclaves}).  We finally compare Nitro
-enclaves to SGX-based enclaves (\S~\ref{sec:comparison}).
+Secure enclaves can take many shapes and offer various security properties but
+in this work, we only require the following three:
 
-\subsection{Secure enclaves}%
-\label{sec:enclaves}
+\begin{description}
 
-Computers operate on data that is at rest, in transit, and in use.  We have
-well-understood and practical ways to protect data at rest (e.g., full disk
-encryption) and in transit (e.g., TLS) but only limited solutions for data that
-is in use.  Cryptography provides solutions in the form of fully homomorphic
-encryption (FHE) and secure multiparty computation (MPC) but for many
-applications, those building blocks remain too slow and cumbersome.  Trusted
-execution environments---in particular in the form of ``secure
-enclaves''---provide an alternative that is rooted in hardware and code.  Unlike
-FHE and MPC, enclaves perform at native (or near-native) execution speed because
-they are general-purpose computing environments that are not limited to the
-computation of carefully designed functions.  Conceptually, enclaves are
-isolated execution environments that are shielded off from a computer's main
-execution environment, which runs the untrustworthy (from the enclave's point of
-view) operating system.  Enclaves offer various security properties but in the
-context of this work, we rely on the following three:
+  \item[Confidentiality] An unauthorized entity (e.g., the host operating
+    system) must not be able to observe the data that an enclave is processing.
 
-\textbf{Confidentiality}: An unauthorized entity (e.g., the operating system)
-must not be able to observe the data that an enclave is processing.
+  \item[Integrity] An unauthorized entity must not be able to modify the data
+    that the enclave is processing, or the code that it is running.
 
-\textbf{Integrity}: An unauthorized entity must not be able to modify the data
-that the enclave is processing, or the code that it is running.
+  \item[Verifiability] Any entity (e.g., a user) must be able to verify if the
+    enclave is running the code that its operator claims it is running.
 
-\textbf{Verifiability}: A separate entity (e.g., an end user) must be able to
-verify if the enclave is running the code that its operator claims it is
-running.
+\end{description}
 
-Major hardware vendors offer CPUs that implement secure enclaves: Intel has SGX
-(and soon TDX~\cite{tdx}), ARM has TrustZone, and AMD has SEV.  A frequent
-critique of these industry efforts focuses on their proprietary nature. The
-community has a conceptual understanding of the mechanisms behind enclaves but
-their exact hardware implementation is not disclosed, which served as motivation
-towards an open source enclave~\cite{Lee20a}.  In practice, enclaves promise to
-be useful in situations where a system must process sensitive data while
-simultaneously be shielded off from the complexity (and subsequent insecurity)
-of general-purpose computers.
+In the rest of this section, we provide background on how Nitro Enclaves
+achieve the above three security properties and we contrast Nitro Enclaves with
+Intel's SGX.
 
 \subsection{The AWS Nitro system}%
 \label{sec:nitro}
