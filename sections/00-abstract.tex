@@ -1,24 +1,31 @@
 \begin{abstract}
 
-In 2020, Amazon introduced Nitro enclaves: cloud-based secure enclaves that do
-not share hardware with untrustworthy code, therefore promising resistance
-against side channel attacks, which have plagued Intel's SGX for years.  While
-their security properties are attractive, Nitro enclaves are difficult to
-write code for and are not meant to be used as a networked service, which
-greatly limits their potential.
+Enclave deployments often fail to simultaneously be
+\emph{secure} (e.g., resistant to side channel attacks),
+\emph{powerful} (i.e., as fast as an off-the-shelf server), and
+\emph{flexible} (i.e., unconstrained by development hurdles).
 %
-  In this paper, we built \emph{\tool{}}---a tool kit that allows for convenient and
-flexible use of Nitro enclaves by abstracting away complex aspects like remote
-attestation and end-to-end encryption between an enclave and a remote client.
+In this paper, we present \tool{}, an open tool kit that enables the
+development of enclave applications that satisfy all three properties.
 %
-We demonstrate the practicality of \tool{} by designing and implementing three
-novel systems that solve real-world problems: an enclave-enabled Tor bridge, an
-enclave-enabled Web browser, and a system for ``infrastructure transparency'',
-which securely makes public the configuration of, say, cloud providers.
+We build \tool{} on top of the recently-proposed AWS Nitro Enclaves whose
+architecture prevents side channel attacks by design, making \tool{} more
+secure than comparable frameworks.  We abstract away the constrained
+development model of Nitro Enclaves, making it possible to run unmodified
+applications inside an enclave that have seamless and secure Internet
+connectivity, all while making our code user-verifiable.
 %
-Performance evaluations and our practical experience suggests that \tool{}
-enables quick prototyping, is flexible enough to accommodate different use
-cases, and inherits strong security and performance properties from the
-underlying Nitro enclaves.
+To demonstrate \tool{}'s flexibility, we design three enclave applications, each
+a research contribution in its own right:
+%
+(i) we run a Tor bridge inside an enclave, making it resistant to protocol-level
+deanonymization attacks;
+%
+(ii) we built a service for securely revealing infrastructure configuration,
+empowering users to verify privacy promises like the discarding of IP addresses
+at the edge;
+%
+(iii) and we move a Chromium browser into an enclave, thereby isolating its
+attack surface from the user's system.
 
 \end{abstract}
