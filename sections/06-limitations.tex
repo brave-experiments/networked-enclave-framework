@@ -9,16 +9,16 @@ problematic but this is a common limitation of enclaves---SGX-based applications
 must trust Intel while TrustZone-based applications must trust ARM.
 
 % Laypeople cannot audit enclave code.
-Our system relies on at least some users auditing the service provider's enclave
-application.  Needless to say, not many users have the skills to audit code.  In
-fact, even among programmers, only a fraction may be qualified to audit source
-code for vulnerabilities.  So what are the non-programmers to do?  We envision
-users to congregate in forums where matters related to the service provider are
-discussed.  A tech-savvy subset of users is going to organize code reviews and
-publish their findings.  Non-technical users may then trust the users who
-audited the source code.  This is no different from other free software
-projects: nobody audits all the software that they use, ranging from the kernel
-to the myriad of user space applications.
+Next, our system relies on at least some users auditing the service provider's
+enclave application.  Needless to say, not many users have the skills to audit
+code.  In fact, even among programmers, only a fraction may be qualified to
+audit source code for vulnerabilities.  So what are the non-programmers to do?
+We envision users to congregate in forums where matters related to the service
+provider are discussed.  A tech-savvy subset of users is going to organize code
+reviews and publish their findings.  Non-technical users may then trust the
+users who audited the source code.  This is no different from other free
+software projects: nobody audits all the software that they use, ranging from
+the kernel to the myriad of user space applications.
 
 % One can hide bugs in plain sight.
 The Underhanded C Coding Contest's~\cite{underhanded-c} goal was the

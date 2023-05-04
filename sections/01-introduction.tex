@@ -11,12 +11,11 @@ developments like Apple's Secure Enclave appear secure but is limited to cell
 phones and therefore lacks powerfulness and flexibility.
 
 % Our solution to the problem.
-In this work, we propose \tool{}, a free software tool kit that enables rapid
-development of secure, powerful, and flexible enclave applications.  By building
-on top of the recently proposed Nitro Enclaves~\cite{nitro-enclaves}, \tool{}
-inherits its strong security properties.  Unlike Intel's SGX, Nitro Enclaves run
-on dedicated CPU and memory that is not shared with untrusted code, which
-promises to mitigate side channel attacks.
+In this work, we propose \tool{}, a free software tool kit that satisfies the
+aforementioned properties.  By building on top of the recently proposed Nitro
+Enclaves~\cite{nitro-enclaves}, \tool{} inherits its strong security properties.
+Unlike Intel's SGX, Nitro Enclaves run on dedicated CPU and memory that is not
+shared with untrusted code, which promises to mitigate side channel attacks.
 %
 By default, Nitro Enclaves are however severely constrained and difficult to
 develop applications for because (i)~Nitro Enclaves are not meant to run
