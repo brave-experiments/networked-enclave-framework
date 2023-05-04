@@ -10,10 +10,11 @@ data <- read.csv(input_file, header = TRUE)
 # cairo_pdf("http-requests-per-sec.pdf", width = 3.5, height = 1.5)
 tikz(file = "http-requests-per-sec.tex",
      standAlone = FALSE,
-     width = 3.5,
+     width = 3.3,
      height = 1.6)
 
 clean_data <- unique(subset(data, select = -c(ms, pct)))
+clean_data <- subset(clean_data, setting != "Docker")
 
 ggplot(clean_data, aes(x = threads,
                        y = reqssec,

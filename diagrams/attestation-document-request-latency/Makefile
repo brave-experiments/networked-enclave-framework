@@ -1,11 +1,11 @@
 tmp = *.tex *.pdf
 data = data.csv
-charts = http-requests-per-sec.tex
+charts = att-doc-latencies.tex
 
 .PHONY: all
 all: $(charts)
 
-$(charts): %.tex: plot-%.R $(data)
+$(charts): %.tex: plot-%.R
 	Rscript $< $(data)
 
 .PHONY: clean
