@@ -9,13 +9,10 @@
 \usepackage[scaled=0.8]{beramono} % For a pleasant monospace font.
 \usepackage{listings} % For pretty code snippets.
 \usepackage{balance} % For balanced references on the last page.
-\usepackage{todonotes} % For pretty todos in the paper.
 \usepackage{pifont} % For dingbats symbols.
 \usepackage[maxbibnames=4, sorting=none, backref=true]{biblatex} % For more flexible references.
 \usepackage{makecell} % For linebreaks in table cells.
 
-\definecolor{todocolor}{HTML}{FFA0A0}
-\newcommand{\phw}[1]{\todo[inline,color = todocolor]{\textbf{Philipp:} #1}}
 \newcommand{\tool}{nitriding}
 \newcommand{\Tool}{Nitriding}
 \urlstyle{rm}
@@ -25,13 +22,6 @@
 \hypersetup{
   pdftitle={Nitriding: A tool kit for building scalable, networked, secure enclaves},
   pdfauthor={Anonymous},
-%  pdfauthor={
-%    Philipp Winter,
-%    Ralph Giles,
-%    Moritz Schafhuber,
-%    Alex Davidson,
-%    and
-%    Gonçalo Pestana},
   pdfkeywords={security, privacy, networking, enclave},
   colorlinks=true,
   urlcolor=gray,
@@ -45,6 +35,9 @@
   stringstyle=\color{gray},
   breakatwhitespace=false,
   breaklines=true,
+  frame=single,
+  frameround=tttt,
+  rulecolor=\color{lightgray},
   captionpos=b,
   keepspaces=true,
   numbers=left,
@@ -62,22 +55,6 @@
 \title{\Large \bf Nitriding: A tool kit for building\\scalable, networked, secure enclaves}
 
 \author{Anonymous}
-% \author{
-%   {\rm Philipp Winter} \\
-%   Brave Software
-%   \and
-%   {\rm Ralph Giles} \\
-%   Brave Software
-%   \and
-%   {\rm Moritz Schafhuber} \\
-%   Brave Software
-%   \and
-%   {\rm Alex Davidson} \\
-%   Brave Software
-%   \and
-%   {\rm Gonçalo Pestana} \\
-%   Brave Software
-% }
 
 \maketitle
 
@@ -92,8 +69,8 @@
 \input{sections/08-conclusion}
 \input{sections/09-availability}
 
-\balance
 \printbibliography
+\balance
 
 \appendix
 

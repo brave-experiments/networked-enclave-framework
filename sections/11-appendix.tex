@@ -10,7 +10,7 @@ illustrated in Figure~\ref{fig:start}.  All the script does is first launch
 the application builds reproducibly, it is possible to run it inside an enclave
 \emph{without modifications}.
 
-\begin{figure}[t]
+\begin{figure}
   \begin{subfigure}[b]{\linewidth}
     \centering
     \begin{lstlisting}
@@ -22,7 +22,7 @@ the application builds reproducibly, it is possible to run it inside an enclave
 
     CMD ["start.sh"]\end{lstlisting}
     \caption{A Dockerfile that embeds \tool{} along with the enclave
-      application, \texttt{enclave-app}.}
+      application, \texttt{enclave-app}.}%
     \label{fig:dockerfile}
   \end{subfigure}
 
@@ -40,12 +40,12 @@ the application builds reproducibly, it is possible to run it inside an enclave
     # Launch the application.
     enclave-app\end{lstlisting}
     \caption{The start.sh shell script launches \tool{} in the background,
-    followed by launching the enclave application}
+    followed by launching the enclave application}%
     \label{fig:start}
   \end{subfigure}
 
   \caption{An example of how a simple enclave application can be bundled with
-  \tool.}
+  \tool.}%
   \label{fig:example}
 \end{figure}
 

@@ -40,7 +40,8 @@
         below=of nitriding.south] (app) {App.};
 
   \node [draw,
-         left=of ec2.west] (letsencrypt) {Let's Encrypt};
+         left=of ec2.west,
+         xshift=10pt] (letsencrypt) {Let's Encrypt};
 
   \node [draw,
          above=of letsencrypt] (backend) {Back end};
