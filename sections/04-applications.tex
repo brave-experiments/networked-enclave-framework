@@ -1,9 +1,8 @@
 \section{\Tool{}-based applications}%
 \label{sec:applications}
 
-We now answer research question $RQ_3$ on what new enclave applications
-emerge from \tool{}.  We do so by building three applications on top of it, each
-a research contribution in its own right.
+In this section, we build three applications on top of \tool{}, each a research
+contribution in its own right.
 %
 First, we build an application that allows a service provider to disclose its
 infrastructure configuration in a user-verifiable way, thus eliminating the
@@ -21,46 +20,41 @@ remote desktop environment (\S~\ref{sec:browser}).
 \label{sec:vct}
 
 Service providers typically outsource their infrastructure to third-party
-providers like content delivery networks or cloud computing vendors.  The
-specific configuration of these third-party providers often affects user
-privacy.  For example, a service provider may configure a third-party reverse
-proxy to strip client IP addresses before requests are forwarded to the servers
-that are under the service provider's control.  How can the service provider
-prove to its users that it configured the reverse proxy as promised?  We built
-an enclave application that discloses the service provider's configuration in a
-user-verifiable way, eliminating the trust that users have to place in the
-configuration of third-party infrastructure.
-
-The idea, illustrated in Figure~\ref{fig:vct} in
+providers like content delivery networks or cloud computing vendors.  The way
+these third-party providers are configured often affects user privacy.  For
+example, a service provider may configure a third-party reverse proxy to strip
+client IP addresses before requests are forwarded to the servers that are under
+the service provider's control.  How can users know that the reverse proxy is in
+fact configured to strip client IP addresses?  We built an enclave application
+that solves this problem by disclosing infrastructure configuration in a
+user-verifiable way.  The idea, illustrated in Figure~\ref{fig:vct} in
 Appendix~\ref{sec:more-diagrams}, consists of a lightweight enclave application
 whose sole purpose is to answer client requests by querying the API of the
 third-party infrastructure provider.  We built our proof-of-concept
-implementation for Cloudflare but the code can easily be adapted to support
-other providers.
+implementation for Cloudflare but the code is easily adapted for other
+providers.
 
 To interact with Cloudflare's API endpoint, one needs a confidential bearer
-token for authentication and a semi-confidential zone
-ID~\cite{spectrum-config}.  Unlike the API endpoint URL, these two values
-cannot be hard-coded in the (public) source code of the enclave application.
-We therefore add a second Web server to the enclave application whose only
-purpose is to receive as input the bearer token and the zone ID (cf.
-\S~\ref{sec:secrets}).  We carefully constrained this Web server's HTTP
-handlers, making it impossible to inject anything into the enclave \emph{but}
-the bearer token and the zone ID.  We further configured the proxy to only
-forward connections from the EC2 host to this Web server.  Internet-connected
-adversaries cannot reach this Web server.  After the administrator launched the
-enclave, she ingests the confidential values into the enclave by calling the
-private HTTP endpoint from the EC2 host.  Users have no reason to be concerned
-about this secret endpoint because the enclave application's source code
-clearly shows that the secret values are only used as part of the API request
-to Cloudflare.
-
-Clients communicate with this enclave application via a single endpoint, which
-returns the JSON-encoded Cloudflare configuration.  When calling this endpoint,
-users provide a nonce in their GET request to convince themselves of the
-enclave's ``freshness'' (cf.~\ref{sec:attestation}).  In summary, clients make
-the following request:
-
+token for authentication and a semi-confidential zone ID~\cite{spectrum-config}.
+Unlike the API endpoint's URL, these two values cannot be hard-coded in the
+(public) source code of the enclave application.  We therefore add a second Web
+server to the enclave application whose only purpose is to receive as input the
+bearer token and the zone ID (cf.  \S~\ref{sec:secrets}).  We carefully
+constrained this Web server's HTTP handlers, making it impossible to inject
+anything into the enclave \emph{but} the bearer token and the zone ID.  We
+further configured the proxy to only forward to this Web server connections
+originating at the EC2 host.  Internet-connected adversaries cannot reach this
+Web server.  After the administrator launches the enclave, she injects the
+confidential values into the enclave by calling the private HTTP endpoint from
+the EC2 host.  Users have no reason to be concerned about this secret endpoint
+because the enclave application's source code shows that the secret values are
+only used for the API request to Cloudflare.  Clients talk to this enclave
+application via a single endpoint, which returns the JSON-encoded Cloudflare
+configuration in the HTTP body, and the enclave's attestation document in a
+custom HTTP header.  Section~\ref{sec:attestation} explained that the
+attestation document must contain a client-provided nonce.  The client provides
+this nonce as part of the HTTP request URL.  In summary, clients make the
+following request:
 
 \begin{lstlisting}[numbers=none,basicstyle=\small\ttfamily]
 GET /verify?nonce=3a26d...a937f HTTP/2
@@ -87,7 +81,7 @@ authenticity of the attestation document (cf. \S~\ref{sec:attestation}).  Once
 convinced that the enclave's response is authentic, the client inspects the
 body of the response---which comes directly from Cloudflare's API.  In
 particular, the client consults Cloudflare's API documentation to verify that
-the service provider configured Cloudflare correctly.  Finally, the user
+the service provider configured Cloudflare as promised.  Finally, the user
 verifies that the domain inside the enclave's response matches the domain that
 the service provider makes available to its users.
 
@@ -98,11 +92,10 @@ The Tor network's security rests on the assumption that certain relays in a
 user's circuit do not collude.  This assumption does not always hold, as in the
 2014 attack that sought to deanonymize onion service
 users~\cite{Dingledine2015a}.  The attack consisted of several malicious relays
-that injected a sequence of \texttt{RELAY} and \texttt{RELAY\_EARLY} cells to
-encode a messages along the circuit~\cite[\S~5.6]{tor-spec}.  This was an active
-attack and therefore required a non-standard implementation that deviates from
-the Tor protocol.  If done well, such attacks can be difficult for clients to
-recognize.
+that injected a sequence of Tor cells to encode a messages along the
+circuit~\cite[\S~5.6]{tor-spec}.  Being an active attack, this required a
+modified relay that deviated from the Tor protocol.  If done well, such attacks
+can be difficult to spot.
 
 \Tool{} can help mitigate such attacks by running Tor infrastructure inside an
 enclave.  By taking advantage of remote attestation, Tor clients can rest
@@ -113,25 +106,23 @@ bridge instead of a relay because bridges can be configured to remain private
 and therefore cause no harm to the network in case our implementation had
 bugs.}
 
-\textbf{Proof-of-concept deployment}:
-Running the Tor executable inside an enclave is straightforward: the Dockerfile
-and startup script are nearly identical to Listing~\ref{fig:example}.  Remote
-attestation however is more complicated.  Ideally, Tor clients would attest the
-authenticity of their Tor bridge as part of the Tor protocol itself but for the
-sake of this prototype, we are content with handling remote attestation outside
-the Tor protocol: Once the Tor bridge is done bootstrapping, it registers
-its long-term identity key with \tool{}.  The enclave then exposes two TCP
-ports: port 443 for \tool{} and port 9001 for Tor.  Before a Tor client
-establishes a circuit over the bridge, it does remote attestation by fetching
-an attestation document as explained in \S~\ref{sec:attestation}.  After
-verifying the attestation document, the bridge establishes a Tor circuit
-and---while establishing the circuit---verifies that the bridge's long-term
-identity key is identical to the key in the attestation document.  If so, the
-client can rest assured that it's talking to a publicly verifiable Tor bridge.
+\textbf{Proof-of-concept deployment}: Running the Tor executable inside an
+enclave is straightforward: the Dockerfile and startup script are nearly
+identical to Listing~\ref{fig:example}.  Remote attestation however is more
+complicated.  Ideally, Tor clients would attest the authenticity of their Tor
+bridge as part of the Tor protocol itself but for the sake of this prototype, we
+are content with handling remote attestation outside the Tor protocol: Once the
+Tor bridge is done bootstrapping, it registers its long-term identity key with
+\tool{}.  The enclave then exposes two TCP ports: port 443 for \tool{} and port
+9001 for Tor.  A Tor client first remotely attests the enclave, followed by
+establishing a circuit over the bridge and---while establishing the
+circuit---verifies that the bridge's long-term identity key is identical to the
+key in the attestation document.  If so, the client can rest assured that it's
+talking to a publicly verifiable Tor bridge.
 
 We implemented the aforementioned prototype and configured Tor Browser v12.0.1
-to use our in-enclave bridge.  Using this setup, we were able to watch 2160p
-YouTube videos free of buffering and other interruptions.
+to use our in-enclave bridge.  Using this setup, we were able to watch 4K
+YouTube videos without buffering delays.
 %
 The above setup works well for an ad-hoc setup but is insufficient for
 network-wide deployment of in-enclave relays and bridges.  In this case, relays
@@ -141,30 +132,29 @@ distributed directory authorities.  Changes to the network consensus are
 complex and need to be addressed in the protocol specification and Tor's
 reference implementation.
 
-\textbf{Comparison to SGX-Tor}:
-In their NSDI'17 paper, Kim et al. augmented the Tor code with SGX, thus giving
-clients, relays, and directory authorities the ability to remotely verify each
-other~\cite{Kim2017a}.  Our approach is differs in the following
-aspects:
+\textbf{Comparison to SGX-Tor}: In their NSDI'17 paper, Kim et al. augmented the
+Tor code with Intel SGX, thus giving clients, relays, and directory authorities
+the ability to remotely verify each other~\cite{Kim2017a}.  Our approach differs
+in the following aspects:
 %
 Clients that seek to verify an SGX enclave's attestation document need to talk
 to Intel's attestation service, which brings with it an array of privacy
-problems~\cite[\S~1.2]{Chen2019a}.  With Nitro enclaves, clients can verify an
-attestation document offline, provided that they have a copy of Amazon's root CA
-public key.
+problems~\cite[\S~1.2]{Chen2019a}.  With Nitro Enclaves, clients can verify an
+attestation document without having to contact a third party, provided that they
+have a copy of Amazon's root CA public key.
 % End-to-end correlation attacks.
 Next, the authors envision the entire Tor network to take advantage of SGX,
-which is not feasible in our approach: Nitro enclaves can only run in
+which is not feasible in our approach: Nitro Enclaves can only run in
 Amazon-controlled AWS.  If all Tor relays ran inside AWS, Amazon would see both
 traffic entering and exiting the network---ideal conditions for end-to-end
 correlation attacks.  We therefore believe that only select Tor bridges benefit
 from running in \tool{}, lest anonymity is jeopardized.
 % Complexity of making it work.
 As for practicality, Kim et al. had to go to great lengths to patch Tor to
-support SGX~\cite[\S~5]{Kim2017a}.  Our proof-of-concept implementation took
-one afternoon.  Finally, since Kim et al.'s paper was published, Intel
-announced the discontinuation of SGX support for consumer-grade Core CPUs,
-which further limits the number of SGX-capable Tor clients.
+support SGX~\cite[\S~5]{Kim2017a}.  Our proof-of-concept implementation took one
+afternoon.  Finally, since Kim et al.'s paper was published, Intel announced the
+discontinuation of SGX support for consumer-grade Core CPUs, which further
+limits the number of SGX-capable Tor clients.
 
 \subsection{An in-enclave Web browser}%
 \label{sec:browser}
@@ -180,28 +170,29 @@ environment.  In addition, users benefit from not having to provide the
 ever-increasing computational resources to run the browser.
 % Disadvantages
 The downside of this approach is that the enclave's EC2 host gets to see the
-browser's entire traffic.  The pervasive deployment of HTTPS helps protect page
-contents from the EC2 host's prying eyes and one could configure the browser to
-use DNS-over-HTTPS to further protect DNS traffic.  A more comprehensive
-solution is to configure the browser to route its traffic over the Tor network.
+browser's traffic---but this can be solved by using a VPN or Tor.
+Alternatively, the pervasive deployment of HTTPS helps protect page contents
+from the EC2 host's prying eyes and one could configure the browser to use
+DNS-over-HTTPS to further protect DNS traffic.
 
 % How we built this
-We start with an Ubuntu Docker image, which we extend by
-installing basic X11 graphical utilities, OpenSSH, TigerVNC, the i3 window
-manager, and a Chromium browser, all via Ubuntu's package manager.\footnote{We
-used Ubuntu 20.04.4 from docker.io.}  We used OpenSSH port forwarding to tunnel
-TigerVNC's TCP traffic, which prevents the EC2 host from spying on VNC traffic.
-The enclave's SSH public key acts as the root of trust, and it lives and dies
-inside the enclave.  We configure \tool{} to add a hash over the public key to
-the attestation document.  Before establishing an SSH connection, clients fetch
-the enclave's attestation document to learn what SSH public key to expect.
+We start with an Ubuntu Docker image, which we extend by installing basic X11
+graphical utilities, OpenSSH, TigerVNC, the i3 window manager, and a Chromium
+browser, all via Ubuntu's package manager.\footnote{We used Ubuntu 20.04.4 from
+docker.io.}  We used OpenSSH port forwarding to tunnel TigerVNC's TCP traffic,
+which prevents the EC2 host from spying on VNC traffic.  The enclave's SSH
+public key acts as the root of trust, and it lives and dies inside the enclave.
+We configure \tool{} to add a hash over this public key to the attestation
+document.  Before establishing an SSH connection, clients fetch the enclave's
+attestation document from the \tool{} port to learn what SSH public key to
+expect.
 %
-By default, AWS's tooling for Nitro enclaves assumes applications smaller than
+By default, AWS's tooling for Nitro Enclaves assumes applications smaller than
 what we need for a remote desktop environment.  Depending on the instance size
 and tool version, we sometimes had out-of-memory errors converting container
-images to enclave images.  By default, the enclave manager allows a maximum
+images to enclave images.  Additionally, the enclave manager allows a maximum
 allocation of 512 MB to each container, which isn't enough to run most graphical
-desktop software.  That limit needs to be raised.
+desktop software by default.  This limit needs to be raised.
 
 There is plenty of room for improvement, both in reducing the enclave's image
 size and in reducing the latency that our VNC server induces.  One can also take

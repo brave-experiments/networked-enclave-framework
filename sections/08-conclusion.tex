@@ -1,11 +1,13 @@
 \section{Conclusion}%
 \label{sec:conclusion}
 
-This work presents \tool{}, a tool kit that facilitates development of
-fast, networked, enclaves.  \Tool{} builds on top of AWS Nitro enclaves whose
-architecture is designed to be resistant to the type of side channel attacks
-that have plagued SGX et al. for years.  Our performance evaluation suggests
-that \tool{} can handle low-latency and high-throughput applications like HD
-video calls and our prototypes show that \tool{} is practical, integrates well
-into popular development workflows, and enables new use cases for networked
-enclaves.
+This work presents \tool{}, a tool kit that facilitates the rapid development of
+flexible, powerful, and secure enclaves.  By building \tool{} on top of AWS
+Nitro Enclaves, we inherit their strong security properties; and we carefully
+engineered \tool{} to provide seamless and secure networking, scalability, and
+remote attestation while remaining entirely user-verifiable.
+%
+Our performance evaluation and our
+three prototypes suggest that \tool{} can handle low-latency, high-throughput,
+and computationally demanding applications like watching HD video streams in an
+in-enclave Chromium browser.

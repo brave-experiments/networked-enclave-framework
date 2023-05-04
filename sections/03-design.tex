@@ -1,11 +1,11 @@
 \section{\Tool{}'s design}%
 \label{sec:design}
 
-We answer our research question $RQ_1$ in this section by discussing
-\tool{}'s design,   We start by laying out our trust assumptions
-and provide a design overview (\S~\ref{sec:assumptions-overview}), followed by a
-discussion of the two major aspects of our tool kit: the reproducible build
-system (\S~\ref{sec:build-system}) and \tool{} itself~(\S~\ref{sec:framework}).
+We now discuss \tool{}'s design by first laying out our trust assumptions and by
+providing an informal design overview (\S~\ref{sec:assumptions-overview}),
+followed by a discussion of the two major aspects of our tool kit: the
+reproducible build system (\S~\ref{sec:build-system}) and \tool{}
+itself~(\S~\ref{sec:framework}).
 
 \subsection{Trust assumptions and design overview}%
 \label{sec:assumptions-overview}
@@ -18,7 +18,7 @@ operations, the service provider wants to process sensitive client information.
 The \emph{client} is a user of the service provider.  It does not trust the
 service provider with its sensitive information and demands verifiable
 guarantees that the service provider will never see the client's sensitive
-information in plaintext.
+information in plain text.
 
 The \emph{enclave provider} makes available enclaves to the service provider.
 Both the client and the service provider trust that the enclave provider's
@@ -36,9 +36,10 @@ publishes the service's source code for its clients to audit.
 \ding{203} The service provider bundles its service with \tool{} and launches
 the enclave, which is now ready to receive incoming connections.
 
-\ding{204} Users audit the service's source code.  Once a user is convinced that
-the code is free of security bugs, she compiles the service using the
-deterministic build system, which results in an image checksum.
+\ding{204} Users audit the service's (freely available) source code.  Once a
+user is convinced that the code is free of security bugs, she compiles the
+service using the deterministic build system, which results in an image
+checksum.
 
 \ding{205} The client establishes an end-to-end encrypted network connection
 with the enclave.  Right \emph{after} establishing the secure channel but
@@ -54,43 +55,44 @@ to the client.
 \ding{207} The client performs various checks (see \S~\ref{sec:attestation} for
 details) and trusts the enclave if all checks pass.  The client is then
 convinced that it's communicating with the code that the user audited in the
-previous steps, and is willing to reveal her sensitive information to the
+previous steps and is willing to reveal her sensitive information to the
 enclave.
 
 \subsection{Enabling reproducible builds}%
 \label{sec:build-system}
 
 Once a user audited the service's code, she compiles the code to obtain the PCR0
-value (cf.~Table~\ref{tab:pcr}), which we call image ID from now on.  Crucially,
-we need a \emph{deterministic mapping} between the code and its corresponding
-image ID because the service provider and clients must agree on the image ID
-that's running in the enclave.  Docker by itself does not provide a
-deterministic mapping because---among other things---Docker records timestamps
-in its build process, causing subsequent builds of identical code to result in
-different image IDs.\footnote{In essence, a Docker image is an archive of a file
-system.  A Docker image is reproducible when separate build processes arrive at
-the exact same file system, including meta data like timestamps.}  To obtain
-reproducible builds, we take advantage of kaniko~\cite{kaniko}, which is
-straightforward to integrate into existing Docker-based workflows.  Kaniko's
-purpose is to build container images from a Dockerfile while itself in a
-container, but we use kaniko because it can do so reproducibly.  As long as the
-client and service provider use the same source code, kaniko version, and
-compiler, they can build identical images---even when compiling the code on
-different platforms, like macOS and Linux.  Equipped with a locally-compiled
-image ID, the client is now ready to interact with the enclave.
+value (cf.~Table~\ref{tab:pcr}).\footnote{We use the terms ``PCR0 value'' and
+``image ID'' interchangeably.}  Crucially, we need a \emph{deterministic
+mapping} between the code and its corresponding image ID because the service
+provider and clients must agree on the image ID that's running in the enclave.
+Docker by itself does not provide a deterministic mapping because---among other
+things---Docker records timestamps in its build process, causing subsequent
+builds of identical code to result in different image IDs.\footnote{In essence,
+a Docker image is an archive of a file system.  A Docker image is reproducible
+when separate build processes arrive at the exact same file system, including
+meta data like timestamps.}  To obtain reproducible builds, we take advantage of
+kaniko~\cite{kaniko}, which is straightforward to integrate into existing
+Docker-based workflows.  Kaniko's purpose is to build container images from a
+Dockerfile while itself in a container, but we use kaniko because it can do so
+reproducibly.  As long as the client and service provider use the same source
+code, kaniko version, and compiler, they can build identical images---even when
+compiling the code on different platforms, like macOS and Linux.  Equipped with
+a locally-generated PCR0 value (henceforth simply called ``image ID''), the
+client is now ready to interact with the enclave.
 
 \subsection{\Tool{}'s components}%
 \label{sec:framework}
 
 Having discussed how the client and service provider can independently arrive at
-identical image IDs, we now turn to \tool{}'s specific components.  The
+identical image IDs, we now turn to \tool{}'s architecture.  The
 following sections discuss how \tool{}
 communicates securely with the outside world (\S~\ref{sec:networking});
 how we facilitate remote attestation (\S~\ref{sec:attestation});
 how enclaves can share their key material to allow for horizontal scaling (\S~\ref{sec:sync});
 how to thwart side-channel attacks (\S~\ref{sec:side-channels}); and
 how to ingest secrets (\S~\ref{sec:secrets}).
-Appendix~\ref{sec:example} provides a simple example of an enclave application.
+Appendix~\ref{sec:example} provides an example of a simple enclave application.
 
 \subsubsection{Enabling seamless and secure networking}%
 \label{sec:networking}
@@ -98,33 +100,27 @@ Appendix~\ref{sec:example} provides a simple example of an enclave application.
 \begin{figure}[t]
   \centering
   \input{sections/figures/network-architecture}
-  \caption{Upon bootstrapping, the application first asks the hypervisor for
-    randomness to seed its entropy pool (\ding{202}), followed by initiating an
-    ACME session to obtain a Let's Encrypt-signed certificate (\ding{203}), after
-    which clients can establish HTTPS connections with the enclave (\ding{204})
-    and the enclave can forward data to its back end (\ding{205}).  All of the
-    application's ingress and egress  traffic is routed over a TCP proxy that
-    translates between AF\_INET and AF\_VSOCK.}
+  \caption{An architectural diagram illustrating the data flow as \tool{} first
+    boots and as clients talk to the enclave application.}%
   \label{fig:networking}
 \end{figure}
 
-Nitro enclaves have no networking interface.  Their only way to talk to the
-outside world is a VSOCK interface that's connected to the EC2 host.  \Tool{}
+Nitro Enclaves have no networking interface.  Their only way to talk to the
+outside world is a VSOCK interface connected to the EC2 host.  \Tool{}
 works around this limitation by creating a TAP interface~\cite{tun-tap} inside
 the enclave as illustrated in Figure~\ref{fig:networking}.  The TAP interface is
 a virtual networking interface that acts as a network bridge between the enclave
 and the EC2 host.  This interface routes traffic to a cooperating proxy
 application running on the EC2 host, which provides the enclave application with
 seamless Internet connectivity for both IPv4 and IPv6.  The proxy supports port
-forwarding to both \tool{} and the enclave application (which are separate and
-independent processes), allowing clients to talk to either directly.  \Tool{}
-supports two modes for the enclave application to receive connections from
-clients:
+forwarding to both \tool{} and the enclave application (which are independent
+processes), allowing clients to talk to either directly.  \Tool{} supports two
+modes for the enclave application to receive connections from clients:
 
 {\bf Reverse proxy}: \Tool{} acts as an HTTP reverse proxy and forwards incoming
 HTTP requests to the enclave application.  \Tool{} terminates the TLS
-connection, meaning that the enclave application can speak plain HTTP.  This
-mode is only applicable if the enclave application exposes an HTTP API.
+connection, meaning that the enclave application can use plain HTTP.  This mode
+is only applicable if the enclave application exposes an HTTP API.
 
 {\bf Direct}: In this mode, the enclave application receives incoming
 connections directly from the cooperating proxy.  \Tool{} is not involved.  This
@@ -133,7 +129,7 @@ require greater flexibility than what the reverse proxy provides.
 
 Having established how the enclave application can send and receive network
 packets, we now turn our attention to secure channels; specifically: how can
-clients establish a secure channel that is terminated inside the enclave?
+clients establish a secure channel that is terminated \emph{inside the enclave}?
 Enclave applications that receive connections in ``direct'' mode must implement
 their own secure channel.   For enclave applications that take advantage of the
 ``reverse proxy'' mode, \tool{} offers a secure channel in the form of HTTPS.
@@ -146,7 +142,7 @@ certificate \emph{lives and dies} inside the enclave and its private key cannot
 be extracted (or injected) by the service provider because enclaves are sealed
 at runtime.
 %
-The EC2 host (which can be malicious according to our threat model) can obtain a
+The EC2 host (which is untrusted as per our threat model) can obtain a
 CA-signed certificate for the same FQDN because the enclave and the EC2 host
 share an IP address.  This however is of little use to the EC2 host because we
 tie the enclave's certificate to an attestation document as we will discuss
@@ -156,29 +152,28 @@ next.
 \label{sec:attestation}
 
 Assume a client established a TLS connection with an enclave.  How does the
-client know that the TLS session is terminated inside the enclave?  And not by
+client know that the TLS session is terminated inside the enclave and not by
 the EC2 host?  Our trust assumptions state that all parties trust the enclave
-provider.  In particular, we use an enclave's attestation document as the root
-of trust.  We therefore \emph{authenticate a secure channel by binding it to the
+provider, Amazon.  We use an enclave's attestation document as the root
+of trust and therefore authenticate a secure channel by \emph{binding it to the
 enclave's attestation document}.  By including the enclave application's public
 key in the attestation document, clients know that they are talking to \emph{an
 enclave}.  And by auditing the enclave code and building it reproducibly,
 clients know that they are talking to \emph{their trusted enclave}.
 
 We now discuss how we allow clients to retrieve and verify an enclave's
-attestation over the Internet because Nitro enclaves only allow for local
+attestation over the Internet because Nitro Enclaves only allow for local
 attestation.  After the client established a secure channel with the enclave, it
-needs to know that (i) the channel it just established is terminated
-inside the enclave (instead of by the EC2 host) and (ii) the enclave is
-running the code that the user audited in the previous step.  To that end, the
-client requests the enclave's attestation document---a hypervisor-signed
-document that attests to the container image ID that the enclave is running.
-To request an attestation document, the client provides a \emph{nonce}---a
-160-bit random value---whose purpose is to prevent the service provider from
-replaying outdated attestation documents.  Phrased differently, the client
-provides a nonce to convince itself that it's talking to a live enclave.
-\Tool{} exposes an HTTP endpoint that clients use to request an attestation
-document.  An example request looks as follows:
+needs to know that (i) the channel it just established is terminated inside the
+enclave (instead of by the EC2 host) and (ii) the enclave is running the code
+that the user audited in the previous step.  To that end, the client requests
+the enclave's attestation document---a hypervisor-signed document that attests
+to the image ID that the enclave is running.  The client begins by provides a
+\emph{nonce}---a 160-bit random value---whose purpose is to prevent the service
+provider from replaying outdated attestation documents.  Phrased differently,
+the client provides a nonce to convince itself that it's talking to a live
+enclave.  \Tool{} exposes an HTTP endpoint that clients use to request an
+attestation document.  An example request looks as follows:
 
 \begin{lstlisting}[numbers=none,basicstyle=\small\ttfamily]
 curl -i "https://enclave/attestation?nonce=abcd..."
@@ -191,7 +186,7 @@ hEShATgioFkQ9alpbW9kdWxlX2lkeCdpLTA2Y...
 
 Upon receiving this client request, the enclave requests an attestation document
 from its hypervisor via an \texttt{ioctl} system call, which makes use of
-/dev/nsm, a device that is only available inside the Nitro enclaves.  As
+/dev/nsm, a device that is available inside the Nitro Enclaves.  As
 illustrated in Figure~\ref{fig:attestation}, \tool{} asks the hypervisor
 to include both the nonce \emph{and} the public key of the enclave's secure
 channel in the attestation document and sends the resulting attestation document
@@ -236,7 +231,7 @@ that is valid for the enclave image, which it can't because it is unable to
 spoof the AWS root CA signature that authenticates the attestation document.
 The only way for the EC2 host to obtain such an attestation document is to spawn
 an enclave that runs the exact code that the client is expecting---and it
-already does exactly that!  Now that the client has established a trust
+already does exactly that.  Now that the client has established a trust
 relationship with the enclave, it is ready to reveal sensitive information to
 the enclave.
 
@@ -289,11 +284,12 @@ in three steps, as illustrated in Figure~\ref{fig:key-synchronization}.
 the FQDN that is hard-coded in the enclave, e.g., example.com.  The DNS resolver
 will return the record, containing a list of enclaves that are already running
 and initialized.  The new enclave picks a random enclave from the list and
-initiates key synchronization.
+initiates key synchronization.  Running Nitro Enclaves as part of Kubernetes
+can handle DNS record generation automatically.
 
 \textbf{Second}, the new enclave asks the existing enclave for a random nonce,
-$\textrm{nonce}_o$.  Each enclave caches $\textrm{nonce}_o$ for only one minute
-to mitigate denial-of-service attacks.
+$\textrm{nonce}_o$.  Both enclaves cache $\textrm{nonce}_o$ for one minute to
+mitigate denial-of-service attacks.
 
 \textbf{Third}, the new enclave now requests the key material from the existing
 enclave.  As part of the request, it provides its attestation document that
@@ -316,9 +312,8 @@ The security of key synchronization is paramount.  We take advantage of mutual
 remote attestation to protect the key material.  As an optional layer of
 defense-in-depth, synchronization should be configured to use a private network,
 which prevents arbitrary Internet hosts from talking to the synchronization
-endpoint.  Kubernetes can provide a private network and is an attractive
-component in our setting considering that enclave applications are essentially
-Docker images, which Kubernetes manages.
+endpoint.  While not required, we recommend running enclaves as part of
+Kubernetes because it provides a private network that is shared by enclaves.
 
 In their 2022 USENIX Security paper, Chen and Zhang present MAGE, a protocol
 that allows enclaves to mutually verify each other without relying on a trusted
@@ -330,13 +325,13 @@ need for the more flexible---but also more complex---MAGE protocol.
 \subsubsection{Side-channel attacks}%
 \label{sec:side-channels}
 
-The enclave's parent EC2 host cannot see \emph{what} clients send to the enclave
-but it can see \emph{how much} clients send and \emph{how long} it takes the
-enclave to process data.  The EC2 host can exploit these side channels to learn
-more about the client's confidential information and computation.  While such
-side channels must be avoided, \tool{} is not the place to do so.  Instead, it
-is the enclave application developer's responsibility to identify and address
-this class of attacks.
+The enclave's EC2 host cannot see \emph{what} clients send to the enclave but it
+can see \emph{how much} clients send and \emph{how long} it takes the enclave to
+process data.  The EC2 host can exploit these side channels to learn more about
+the client's confidential information and computation.  While such side channels
+must be avoided, \tool{} is not the place to do so.  Instead, it is the enclave
+application developer's responsibility to identify and address this class of
+attacks, e.g., by implement constant-time processing.
 
 \subsubsection{Ingesting secrets}%
 \label{sec:secrets}
@@ -353,15 +348,17 @@ deny list is hard-coded in the publicly available enclave application, it is
 readily visible to anyone.  The service provider can solve this problem by
 adding to the enclave application a new HTTP handler that takes as input the
 confidential data it seeks to protect from the users' eyes.  Once the enclave is
-running, the service provider loads the confidential data at runtime, by calling
-the end point.  To prevent users from submitting bogus data, the endpoint must
-be authenticated, i.e., the code could hard-code the service provider's public
-key and only accept data that carries a valid signature of the service
-provider's private key.  We provide an example of this in Section~\ref{sec:vct}.
+running, the service provider loads the confidential deny list.  To prevent
+users from submitting bogus data, the endpoint must be authenticated.  One
+could accomplish this by hard-coding the service provider's public key in the
+enclave application, and only accepting deny lists that carry a valid signature.
+Another possibility is to expose this endpoint only to the EC2 host, so only the
+service provider has access to it.  We provide an example of this in
+Section~\ref{sec:vct}.
 
 This technique for ingesting secrets is flexible---so flexible, in fact, that
 the service provider could abuse it to ingest code at runtime, which would
 nullify the enclave's verifiability requirement.  Vigilant users would never
 trust an enclave whose code can change at runtime.  We therefore argue that an
-HTTP handler for the purpose of ingesting secrets must be constrained to a point
-that only data of a well-defined type can be ingested.
+HTTP handler for the purpose of ingesting secrets must be constrained so that
+only well-defined data of a certain type (like a deny list) can be ingested.
