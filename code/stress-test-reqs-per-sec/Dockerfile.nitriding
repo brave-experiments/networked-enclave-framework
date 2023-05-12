@@ -1,0 +1,7 @@
+FROM alpine:latest
+
+COPY nitriding /
+COPY vsock-websrv/websrv /
+COPY start.sh /
+
+CMD ["/start.sh", "reverse-proxy"]
