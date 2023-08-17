@@ -7,6 +7,7 @@ charts = diagrams/attestation-document-request-latency/att-doc-latencies.tex
 all: paper
 
 $(charts):
+	$(MAKE) -C $(dir $@)
 
 paper: $(deps) $(charts)
 	latexmk -pdflatex -quiet paper.tex
